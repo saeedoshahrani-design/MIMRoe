@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MIMR Operation Excellence Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        darkMode: 'class',
+        theme: {
+            extend: {
+                colors: {
+                    'mim-darkest-gray': '#111827',
+                    'mim-dark-gray': '#666666',
+                    'mim-medium-gray': '#B3B3B3',
+                    'mim-light-gray': '#E6E6E6',
+                    'mim-dark-pink': '#BD9F9D',
+                    'mim-dark-purple': '#413258',
+                    'mim-bright-blue': '#1AD9C7',
+                    'natural': {
+                        '900': '#111827', '800': '#1f2937', '700': '#374151', '600': '#4b5563', '500': '#6b7280',
+                        '400': '#9ca3af', '300': '#d1d5db', '200': '#e5e7eb', '100': '#f3f4f6', '50': '#f9fafb'
+                    },
+                    'dark-purple': {
+                        '900': '#581c87', '800': '#6b21a8', '700': '#7e22ce', '600': '#9333ea', '500': '#a855f7',
+                        '400': '#c084fc', '300': '#d8b4fe', '200': '#e9d5ff', '100': '#f3e8ff', '50': '#faf5ff'
+                    },
+                    'bright-blue': {
+                        '900': '#064e3b', '800': '#065f46', '700': '#047857', '600': '#059669', '500': '#10b981',
+                        '400': '#34d399', '300': '#6ee7b7', '200': '#a7f3d0', '100': '#d1fae5', '50': '#ecfdf5'
+                    },
+                },
+                fontFamily: {
+                    sans: ['"Almarai"', 'sans-serif'],
+                }
+            }
+        }
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+<script type="importmap">
+{
+  "imports": {
+    "recharts": "https://aistudiocdn.com/recharts@^3.2.1",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+<style>
+    /* Improve visibility of date picker icon in light/dark modes */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator:hover {
+        opacity: 1;
+    }
+    html.dark input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1) brightness(0.8);
+    }
+</style>
+</head>
+<body class="bg-natural-50 dark:bg-natural-900">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
