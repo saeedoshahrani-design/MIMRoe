@@ -1,3 +1,5 @@
+
+
 import React, { useMemo } from 'react';
 import { useLocalization } from '../../hooks/useLocalization';
 import { Challenge } from '../../types';
@@ -8,6 +10,7 @@ import { calculateProgress } from '../../utils/calculateProgress';
 import { calculatePlannedProgress, getPerformanceStatus } from '../../utils/calculatePlannedProgress';
 import { getPriorityBadgeStyle } from '../../utils/priority';
 import { locales } from '../../i18n/locales';
+import { translateChallengeField, translateDepartment } from '../../utils/localizationUtils';
 
 const getStatusChip = (status: Challenge['status']) => {
     switch (status) {
@@ -65,15 +68,16 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onEdit, onDele
                             className={`px-2 py-1 text-xs font-bold rounded-full ${getPriorityBadgeStyle(challenge.priority_category)}`}
                             title={t('challenges.priorityBadgeTooltip')}
                         >
-                            {t(`challenges.priorityCategories.${challenge.priority_category as keyof typeof locales.en.challenges.priorityCategories}`)}
+                            {/* FIX: Explicitly cast to string to prevent implicit symbol conversion error. */}
+                            {t(`challenges.priorityCategories.${String(challenge.priority_category)}`)}
                         </span>
                     </div>
-                    <h3 className="font-bold text-lg text-natural-800 dark:text-natural-100 break-words">{language === 'ar' ? challenge.title_ar : challenge.title_en}</h3>
-                    <p className="text-sm font-medium text-natural-500 dark:text-natural-400 mt-1">{challenge.department}</p>
+                    <h3 className="font-bold text-lg text-natural-800 dark:text-natural-100 break-words">{challenge.title}</h3>
+                    <p className="text-sm font-medium text-natural-500 dark:text-natural-400 mt-1">{translateDepartment(challenge.department, language)}</p>
                 </div>
                 <div className="flex flex-col items-end flex-shrink-0 space-y-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusChip(challenge.status)}`}>
-                        {challenge.status}
+                        {translateChallengeField('status', challenge.status, t)}
                     </span>
                 </div>
             </div>
@@ -94,21 +98,21 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onEdit, onDele
                     <ActionButton
                         onClick={() => onViewDetails(challenge)}
                         label={t('viewDetails')}
-                        ariaLabel={`${t('viewDetails')} for ${language === 'ar' ? challenge.title_ar : challenge.title_en}`}
+                        ariaLabel={`${t('viewDetails')} for ${challenge.title}`}
                         icon={<EyeIcon className="h-5 w-5" />}
                         className="text-natural-500 hover:bg-natural-100 dark:hover:bg-natural-700 hover:text-dark-purple-600 dark:hover:text-dark-purple-400"
                     />
                     <ActionButton
                         onClick={() => onEdit(challenge)}
                         label={t('edit')}
-                        ariaLabel={`${t('edit')} for ${language === 'ar' ? challenge.title_ar : challenge.title_en}`}
+                        ariaLabel={`${t('edit')} for ${challenge.title}`}
                         icon={<PencilIcon className="h-5 w-5" />}
                         className="text-natural-500 hover:bg-natural-100 dark:hover:bg-natural-700 hover:text-dark-purple-600 dark:hover:text-dark-purple-400"
                     />
                     <ActionButton
                         onClick={() => onDelete(challenge)}
                         label={t('delete')}
-                        ariaLabel={`${t('delete')} for ${language === 'ar' ? challenge.title_ar : challenge.title_en}`}
+                        ariaLabel={`${t('delete')} for ${challenge.title}`}
                         icon={<TrashIcon className="h-5 w-5" />}
                         className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/50 hover:text-red-700 dark:hover:text-red-400"
                     />

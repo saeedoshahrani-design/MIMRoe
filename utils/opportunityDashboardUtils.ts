@@ -14,9 +14,11 @@ export const filterOpportunities = (opportunities: Opportunity[], filters: Oppor
         if (filters.searchTerm) {
             const lowerSearch = filters.searchTerm.toLowerCase();
             if (
-                !op.title.toLowerCase().includes(lowerSearch) &&
-                !op.proposedSolution.toLowerCase().includes(lowerSearch) &&
-                !op.code.toLowerCase().includes(lowerSearch)
+                !(op.title?.en || '').toLowerCase().includes(lowerSearch) &&
+                !(op.title?.ar || '').toLowerCase().includes(lowerSearch) &&
+                !(op.proposedSolution?.en || '').toLowerCase().includes(lowerSearch) &&
+                !(op.proposedSolution?.ar || '').toLowerCase().includes(lowerSearch) &&
+                !(op.code || '').toLowerCase().includes(lowerSearch)
             ) {
                 return false;
             }
@@ -120,6 +122,7 @@ export const prepareOpportunityDepartmentDistributionData = (opportunities: Oppo
         acc[deptName][op.status]++;
         acc[deptName].total++;
         return acc;
+        // FIX: Add explicit type for accumulator to resolve sorting error on 'total' property.
     }, {} as Record<string, { name: string; total: number } & Record<OpportunityStatus, number>>);
     
     return Object.values(departmentsData).sort((a, b) => b.total - a.total);

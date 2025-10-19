@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useLayoutEffect, useRef, useMemo } from 'react';
 import { Procedure } from '../../types';
 import { useLocalization } from '../../hooks/useLocalization';
 import { CloseIcon, PlusIcon, TrashIcon } from '../icons/IconComponents';
 import { departments } from '../../data/mockData';
 import { ProcedureFormData } from '../../context/ProceduresContext';
+import { useDepartmentsData } from '../../context/DepartmentsDataContext';
 
 interface ProcedureFormModalProps {
     isOpen: boolean;
@@ -12,7 +13,7 @@ interface ProcedureFormModalProps {
     procedureToEdit: Procedure | null;
 }
 
-type FormState = Omit<ProcedureFormData, 'formsUsed' | 'definitions' | 'kpi'>;
+type FormState = Omit<ProcedureFormData, 'formsUsed' | 'definitions' | 'kpis'>;
 
 const getInitialState = (): FormState => ({
     title: '',
@@ -25,6 +26,8 @@ const getInitialState = (): FormState => ({
     linkedService: '',
     durationDays: undefined,
     eReadiness: 'not-electronic',
+    linkedTaskIds: [],
+    linkedTargetIds: [],
 });
 
 const fileTypes = "application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation";
@@ -54,11 +57,11 @@ const AutoGrowTextarea: React.FC<AutoGrowTextareaProps> = (props) => {
 const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({ isOpen, onClose, onSave, procedureToEdit }) => {
     const { t, language } = useLocalization();
     const isEditMode = !!procedureToEdit;
+    const { getDepartmentData } = useDepartmentsData();
     
     const [formData, setFormData] = useState<FormState>(getInitialState());
     const [forms, setForms] = useState<ProcedureFormData['formsUsed']>([]);
     const [definitions, setDefinitions] = useState<ProcedureFormData['definitions']>([]);
-    const [kpi, setKpi] = useState<ProcedureFormData['kpi']>({ name: '', target: '', description: '' });
     
     const [errors, setErrors] = useState<{ title?: string; departmentId?: string; durationDays?: string; forms?: { [key: number]: { name?: string, file?: string } } }>({});
 
@@ -66,7 +69,6 @@ const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({ isOpen, onClose
         setFormData(getInitialState());
         setForms([]);
         setDefinitions([]);
-        setKpi({ name: '', target: '', description: '' });
         setErrors({});
         onClose();
     }, [onClose]);
@@ -85,19 +87,15 @@ const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({ isOpen, onClose
                     linkedService: procedureToEdit.linkedService?.[language] || '',
                     durationDays: procedureToEdit.durationDays,
                     eReadiness: procedureToEdit.eReadiness,
+                    linkedTaskIds: procedureToEdit.linkedTaskIds || [],
+                    linkedTargetIds: procedureToEdit.linkedTargetIds || [],
                 });
                 setForms(procedureToEdit.formsUsed?.map((f, i) => ({ id: i, name: f.name[language], file: null, existingFile: f.file })) || []);
                 setDefinitions(procedureToEdit.definitions?.map(d => ({ id: d.id, term: d.term[language], definition: d.definition[language] })) || []);
-                setKpi({
-                    name: procedureToEdit.kpi?.name[language] || '',
-                    target: procedureToEdit.kpi?.target[language] || '',
-                    description: procedureToEdit.kpi?.description[language] || ''
-                });
             } else {
                 setFormData(getInitialState());
                 setForms([]);
                 setDefinitions([]);
-                setKpi({ name: '', target: '', description: '' });
             }
             setErrors({});
         }
@@ -109,14 +107,16 @@ const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({ isOpen, onClose
         if (name === 'durationDays') {
             processedValue = value === '' ? undefined : parseInt(value, 10);
         }
-        setFormData(prev => ({ ...prev, [name]: processedValue }));
+        setFormData(prev => {
+            const newState = { ...prev, [name]: processedValue };
+            if (name === 'departmentId' && prev.departmentId !== value) {
+                newState.linkedTaskIds = []; // Reset linked tasks when department changes
+                newState.linkedTargetIds = []; // Reset linked targets when department changes
+            }
+            return newState;
+        });
     };
 
-    const handleKpiChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setKpi(prev => ({...prev, [name]: value}));
-    };
-    
     // FormsUsed Handlers
     const addForm = () => setForms(prev => [...prev, { id: Date.now(), name: '', file: null }]);
     const removeForm = (id: number) => setForms(prev => prev.filter(f => f.id !== id));
@@ -128,6 +128,29 @@ const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({ isOpen, onClose
     const removeDefinition = (id: string) => setDefinitions(prev => prev.filter(d => d.id !== id));
     const handleDefinitionChange = (id: string, field: 'term' | 'definition', value: string) => {
         setDefinitions(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d));
+    };
+
+    const departmentData = useMemo(() => {
+        if (!formData.departmentId) return { tasks: [], targets: [] };
+        return getDepartmentData(formData.departmentId);
+    }, [formData.departmentId, getDepartmentData]);
+
+    const handleLinkedTaskChange = (taskId: string) => {
+        setFormData(prev => {
+            const newIds = prev.linkedTaskIds.includes(taskId)
+                ? prev.linkedTaskIds.filter(id => id !== taskId)
+                : [...prev.linkedTaskIds, taskId];
+            return { ...prev, linkedTaskIds: newIds };
+        });
+    };
+
+    const handleLinkedTargetChange = (targetId: string) => {
+        setFormData(prev => {
+            const newIds = prev.linkedTargetIds.includes(targetId)
+                ? prev.linkedTargetIds.filter(id => id !== targetId)
+                : [...prev.linkedTargetIds, targetId];
+            return { ...prev, linkedTargetIds: newIds };
+        });
     };
 
     const validate = () => {
@@ -155,7 +178,14 @@ const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({ isOpen, onClose
 
     const handleSubmit = () => {
         if (validate()) {
-            onSave({ ...formData, formsUsed: forms, definitions, kpi });
+            // Preserve existing KPIs if in edit mode, as they are now managed separately.
+            const existingKpis = procedureToEdit?.kpis?.map(k => ({
+                id: k.id,
+                name: k.name[language],
+                target: k.target[language],
+                description: k.description[language]
+            })) || [];
+            onSave({ ...formData, formsUsed: forms, definitions, kpis: existingKpis });
         }
     };
     
@@ -185,6 +215,35 @@ const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({ isOpen, onClose
                         </select>
                         {errors.departmentId && <p className="text-red-500 text-xs mt-1">{errors.departmentId}</p>}
                     </div>
+                    
+                    {departmentData.tasks.length > 0 && (
+                        <div>
+                            <label className="block text-sm font-medium mb-1">{t('procedures.linkedTasks')}</label>
+                            <div className="mt-1 border border-natural-200 dark:border-natural-700 rounded-lg p-3 space-y-2 max-h-40 overflow-y-auto">
+                                {departmentData.tasks.map(task => (
+                                    <label key={task.id} htmlFor={`task-${task.id}`} className="flex items-center p-2 rounded-md hover:bg-natural-100 dark:hover:bg-natural-800 cursor-pointer">
+                                        <input type="checkbox" id={`task-${task.id}`} checked={formData.linkedTaskIds.includes(task.id)} onChange={() => handleLinkedTaskChange(task.id)} className="h-4 w-4 rounded border-natural-300 text-dark-purple-600 focus:ring-dark-purple-500" />
+                                        <span className="ms-3 text-sm text-natural-700 dark:text-natural-200">{task.description}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {departmentData.targets.length > 0 && (
+                         <div>
+                            <label className="block text-sm font-medium mb-1">{t('procedures.linkedTargets')}</label>
+                            <div className="mt-1 border border-natural-200 dark:border-natural-700 rounded-lg p-3 space-y-2 max-h-40 overflow-y-auto">
+                                {departmentData.targets.map(target => (
+                                    <label key={target.id} htmlFor={`target-${target.id}`} className="flex items-center p-2 rounded-md hover:bg-natural-100 dark:hover:bg-natural-800 cursor-pointer">
+                                        <input type="checkbox" id={`target-${target.id}`} checked={formData.linkedTargetIds.includes(target.id)} onChange={() => handleLinkedTargetChange(target.id)} className="h-4 w-4 rounded border-natural-300 text-dark-purple-600 focus:ring-dark-purple-500" />
+                                        <span className="ms-3 text-sm text-natural-700 dark:text-natural-200">{target.name}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                      <div>
                         <label htmlFor="description" className="block text-sm font-medium mb-1">{t('procedures.description')}</label>
                         <textarea id="description" name="description" value={formData.description} onChange={handleChange} rows={4} className="w-full p-2 bg-natural-100 dark:bg-natural-700 rounded-md border border-natural-300 dark:border-natural-600"></textarea>
@@ -278,25 +337,6 @@ const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({ isOpen, onClose
                          </div>
                          <button type="button" onClick={addDefinition} className="mt-2 text-sm font-semibold text-dark-purple-600 dark:text-dark-purple-400 hover:underline flex items-center gap-1"><PlusIcon className="w-4 h-4"/>{t('procedures.addDefinition')}</button>
                     </div>
-                    
-                    {/* KPI */}
-                     <div className="pt-2">
-                        <h3 className="text-sm font-semibold mb-2">{t('procedures.kpi')}</h3>
-                        <div className="p-3 border rounded-md dark:border-natural-700 space-y-3">
-                            <div>
-                                <label htmlFor="kpiName" className="block text-xs font-medium mb-1">{t('procedures.kpiName')}</label>
-                                <input id="kpiName" name="name" value={kpi.name} onChange={handleKpiChange} className="w-full p-2 text-sm bg-white dark:bg-natural-700 rounded-md border border-natural-300 dark:border-natural-600"/>
-                            </div>
-                            <div>
-                                <label htmlFor="kpiTarget" className="block text-xs font-medium mb-1">{t('procedures.kpiTarget')}</label>
-                                <input id="kpiTarget" name="target" value={kpi.target} onChange={handleKpiChange} className="w-full p-2 text-sm bg-white dark:bg-natural-700 rounded-md border border-natural-300 dark:border-natural-600"/>
-                            </div>
-                            <div>
-                                <label htmlFor="kpiDescription" className="block text-xs font-medium mb-1">{t('procedures.kpiDescription')}</label>
-                                <textarea id="kpiDescription" name="description" value={kpi.description} onChange={handleKpiChange} rows={2} className="w-full p-2 text-sm bg-white dark:bg-natural-700 rounded-md border border-natural-300 dark:border-natural-600"></textarea>
-                            </div>
-                        </div>
-                     </div>
                 </div>
                 <div className="flex justify-end items-center p-4 mt-auto border-t dark:border-natural-700 bg-natural-50 dark:bg-natural-800/50">
                     <button onClick={resetAndClose} className="px-4 py-2 text-sm rounded-md">{t('cancel')}</button>

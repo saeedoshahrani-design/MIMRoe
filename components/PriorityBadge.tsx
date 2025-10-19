@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 import { useLocalization } from '../hooks/useLocalization';
 import { getPriorityBadgeStyle } from '../utils/priority';
@@ -17,7 +19,8 @@ const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priorityCategory, classNa
             className={`inline-block px-2 py-1 text-xs font-bold rounded-full ${getPriorityBadgeStyle(priorityCategory)} ${className}`}
             title={t('challenges.priorityBadgeTooltip')}
         >
-            {t(`challenges.priorityCategories.${priorityCategory as keyof typeof locales.en.challenges.priorityCategories}`)}
+            {/* FIX: Explicitly cast to string to prevent implicit symbol conversion error. */}
+            {t(`challenges.priorityCategories.${String(priorityCategory)}`)}
         </span>
     );
 };

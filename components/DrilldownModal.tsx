@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useLocalization } from '../hooks/useLocalization';
 import { Challenge } from '../types';
 import { CloseIcon, SearchIcon } from './icons/IconComponents';
+import { translateDepartment } from '../utils/localizationUtils';
 
 interface DrilldownModalProps {
     isOpen: boolean;
@@ -19,9 +20,8 @@ const DrilldownModal: React.FC<DrilldownModalProps> = ({ isOpen, onClose, title,
         if (!searchTerm) return challenges;
         const lowerSearch = searchTerm.toLowerCase();
         return challenges.filter(c => 
-            c.code.toLowerCase().includes(lowerSearch) ||
-            c.title_ar.toLowerCase().includes(lowerSearch) ||
-            c.title_en.toLowerCase().includes(lowerSearch)
+            (c.code || '').toLowerCase().includes(lowerSearch) ||
+            (c.title || '').toLowerCase().includes(lowerSearch)
         );
     }, [challenges, searchTerm]);
 
@@ -58,9 +58,9 @@ const DrilldownModal: React.FC<DrilldownModalProps> = ({ isOpen, onClose, title,
                                     <div className="min-w-0">
                                         <p className="font-semibold text-natural-800 dark:text-natural-100 break-words">
                                             <span className="text-xs font-mono bg-natural-200 dark:bg-natural-700 px-1.5 py-0.5 rounded mr-2">{challenge.code}</span>
-                                            {language === 'ar' ? challenge.title_ar : challenge.title_en}
+                                            {challenge.title}
                                         </p>
-                                        <p className="text-sm text-natural-500 dark:text-natural-400">{challenge.department}</p>
+                                        <p className="text-sm text-natural-500 dark:text-natural-400">{translateDepartment(challenge.department, language)}</p>
                                     </div>
                                     <button
                                         onClick={() => onViewDetails(challenge)}

@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useLocalization } from '../../hooks/useLocalization';
-import { DepartmentTask } from '../../types';
+import { DepartmentTask, Procedure } from '../../types';
 import Card from '../Card';
 import EmptyState from '../EmptyState';
-import { CheckBadgeIcon, SearchIcon, PlusIcon, PencilIcon, TrashIcon } from '../icons/IconComponents';
+import { CheckBadgeIcon, SearchIcon, PlusIcon, PencilIcon, TrashIcon, LinkIcon } from '../icons/IconComponents';
 import TaskFormModal from './TaskFormModal';
 import ConfirmationModal from '../ConfirmationModal';
 
@@ -15,10 +15,12 @@ interface TasksCardProps {
     onDeleteTask: (taskId: string) => void;
     onReorderTasks: (draggedId: string, targetId: string) => void;
     setToast: (toast: any) => void;
+    procedures: Procedure[];
+    onViewProcedure: (procedure: Procedure) => void;
 }
 
-const TasksCard: React.FC<TasksCardProps> = ({ departmentId, tasks, onAddTask, onUpdateTask, onDeleteTask, onReorderTasks, setToast }) => {
-    const { t } = useLocalization();
+const TasksCard: React.FC<TasksCardProps> = ({ departmentId, tasks, onAddTask, onUpdateTask, onDeleteTask, onReorderTasks, setToast, procedures, onViewProcedure }) => {
+    const { t, language } = useLocalization();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [taskToEdit, setTaskToEdit] = useState<DepartmentTask | null>(null);
     const [taskToDelete, setTaskToDelete] = useState<DepartmentTask | null>(null);
@@ -30,7 +32,7 @@ const TasksCard: React.FC<TasksCardProps> = ({ departmentId, tasks, onAddTask, o
 
     const filteredTasks = useMemo(() => {
         return sortedTasks.filter(task => 
-            task.description.toLowerCase().includes(searchTerm.toLowerCase())
+            (task.description || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [sortedTasks, searchTerm]);
 
@@ -98,22 +100,51 @@ const TasksCard: React.FC<TasksCardProps> = ({ departmentId, tasks, onAddTask, o
                             <SearchIcon className="absolute top-1/2 -translate-y-1/2 start-3 h-5 w-5 text-natural-400" />
                         </div>
                         <div className="space-y-1 overflow-y-auto -mr-2 pr-2 max-h-[500px]">
-                            {filteredTasks.map(task => (
+                            {filteredTasks.map(task => {
+                                const linkedProcedures = procedures.filter(p => p.linkedTaskIds?.includes(task.id));
+                                return (
                                 <div
                                     key={task.id}
-                                    className="group flex items-start justify-between gap-2 p-2 rounded-md transition-colors hover:bg-natural-100 dark:hover:bg-natural-800"
+                                    className="group p-2 rounded-md transition-colors hover:bg-natural-100 dark:hover:bg-natural-800"
                                 >
-                                    <p className="flex-grow text-sm text-natural-700 dark:text-natural-200 whitespace-pre-wrap py-1 min-w-0 break-words">{task.description}</p>
-                                    <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                                        <button onClick={() => handleOpenEditModal(task)} className="p-1 text-natural-500 hover:text-dark-purple-600 rounded-full hover:bg-natural-200 dark:hover:bg-natural-700">
-                                            <PencilIcon className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => setTaskToDelete(task)} className="p-1 text-natural-500 hover:text-red-600 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50">
-                                            <TrashIcon className="w-4 h-4" />
-                                        </button>
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="flex-grow text-sm text-natural-700 dark:text-natural-200 whitespace-pre-wrap py-1 min-w-0 break-words">{task.description}</p>
+                                        <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                            <button onClick={() => handleOpenEditModal(task)} className="p-1 text-natural-500 hover:text-dark-purple-600 rounded-full hover:bg-natural-200 dark:hover:bg-natural-700">
+                                                <PencilIcon className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => setTaskToDelete(task)} className="p-1 text-natural-500 hover:text-red-600 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50">
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-2 pt-2 border-t border-natural-200/50 dark:border-natural-700/50">
+                                        {linkedProcedures.length > 0 ? (
+                                            <div className="flex flex-wrap gap-2 items-center">
+                                                <span className="flex-shrink-0" title={t('departments.tasks.linkedProcedures')}>
+                                                    <LinkIcon className="w-4 h-4 text-natural-400" />
+                                                </span>
+                                                {linkedProcedures.map(proc => (
+                                                    <button
+                                                        key={proc.id}
+                                                        onClick={() => onViewProcedure(proc)}
+                                                        className="px-2 py-0.5 text-xs font-mono bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                                                        title={proc.title[language]}
+                                                    >
+                                                        {proc.code}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 text-xs text-natural-400 italic">
+                                                <LinkIcon className="w-4 h-4"/>
+                                                <span>{t('departments.tasks.noLinkedProcedures')}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     </>
                 ) : (

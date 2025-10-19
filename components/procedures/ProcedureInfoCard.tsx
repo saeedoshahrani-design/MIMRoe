@@ -1,0 +1,186 @@
+import React, { useMemo } from 'react';
+import { Procedure } from '../../types';
+import { useLocalization } from '../../hooks/useLocalization';
+import {
+// FIX: Import InformationCircleIcon
+    InformationCircleIcon,
+    ClockIcon, DocumentTextIcon, ComputerDesktopIcon, ArrowLeftCircleIcon, ArrowRightCircleIcon, BookOpenIcon,
+    DocumentArrowDownIcon, ChartBarIcon, ListBulletIcon, BoltIcon,
+} from '../icons/IconComponents';
+import { departments } from '../../data/mockData';
+import { useDepartmentsData } from '../../context/DepartmentsDataContext';
+import Card from '../Card';
+
+interface ProcedureInfoCardProps {
+    procedure: Procedure;
+    onEdit: (procedure: Procedure) => void;
+    onDelete: (procedure: Procedure) => void;
+}
+
+const DetailSection: React.FC<{ icon: React.ReactNode, title: string; children: React.ReactNode; className?: string }> = ({ icon, title, children, className }) => (
+    <div className={`p-4 bg-natural-50 dark:bg-natural-800/50 rounded-lg ${className}`}>
+        <h3 className="flex items-center gap-2 text-md font-bold text-dark-purple-700 dark:text-dark-purple-300 mb-3">
+            {icon}
+            {title}
+        </h3>
+        <div className="text-natural-700 dark:text-natural-200 text-sm space-y-2">
+            {children}
+        </div>
+    </div>
+);
+
+const DetailItem: React.FC<{ label: string; value?: string | React.ReactNode }> = ({ label, value }) => (
+    <div className="min-w-0">
+        <p className="text-xs font-semibold text-natural-500 dark:text-natural-400">{label}</p>
+        <div className="font-medium break-words">{value || '-'}</div>
+    </div>
+);
+
+const ProcedureInfoCard: React.FC<ProcedureInfoCardProps> = ({ procedure, onEdit, onDelete }) => {
+    const { t, language } = useLocalization();
+    const { getDepartmentData } = useDepartmentsData();
+
+    const departmentData = useMemo(() => {
+        if (!procedure) return { tasks: [], targets: [] };
+        return getDepartmentData(procedure.departmentId);
+    }, [procedure, getDepartmentData]);
+
+    const linkedTasks = useMemo(() => {
+        if (!procedure?.linkedTaskIds || procedure.linkedTaskIds.length === 0) return [];
+        return departmentData.tasks.filter(task => procedure.linkedTaskIds?.includes(task.id));
+    }, [procedure, departmentData.tasks]);
+
+    const linkedTargets = useMemo(() => {
+        if (!procedure?.linkedTargetIds || procedure.linkedTargetIds.length === 0) return [];
+        return departmentData.targets.filter(target => procedure.linkedTargetIds?.includes(target.id));
+    }, [procedure, departmentData.targets]);
+
+    const departmentName = departments.find(d => d.id === procedure.departmentId)?.name[language] || procedure.departmentId;
+
+    const eReadinessInfo = {
+        'electronic': {
+            text: t('procedures.electronic'),
+            icon: <ComputerDesktopIcon className="w-5 h-5" />,
+            className: 'text-green-700 dark:text-green-300',
+        },
+        'partially-electronic': {
+            text: t('procedures.partiallyElectronic'),
+            icon: <ComputerDesktopIcon className="w-5 h-5" />,
+            className: 'text-yellow-700 dark:text-yellow-300',
+        },
+        'not-electronic': {
+            text: t('procedures.notElectronic'),
+            icon: <DocumentTextIcon className="w-5 h-5" />,
+            className: 'text-red-700 dark:text-red-400',
+        }
+    }[procedure.eReadiness];
+
+    return (
+        <Card>
+            <div className="space-y-6">
+                <div className="pb-4 border-b border-natural-200 dark:border-natural-700">
+                    <span className="inline-block px-3 py-1 text-sm font-semibold rounded-full bg-dark-purple-100 text-dark-purple-800 dark:bg-dark-purple-800 dark:text-dark-purple-100 mb-2">
+                        {procedure.code}
+                    </span>
+                    <h1 className="text-2xl font-bold text-natural-800 dark:text-natural-100 break-words">{procedure.title?.[language] ?? ''}</h1>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <DetailItem label={t('procedures.owningDepartment')} value={departmentName} />
+                    <DetailItem label={t('procedures.relatedService')} value={procedure.linkedService?.[language]} />
+                    <DetailItem label={t('procedures.duration')} value={procedure.durationDays ? `${procedure.durationDays} ${t('departments.targets.unitOptions.days')}` : '-'} />
+                    <DetailItem label={t('procedures.eReadiness')} value={
+                         eReadinessInfo && (
+                            <div className={`flex items-center gap-1.5 ${eReadinessInfo.className}`}>
+                                {eReadinessInfo.icon}
+                                <span className="font-semibold">{eReadinessInfo.text}</span>
+                            </div>
+                        )
+                    } />
+                </div>
+                
+                <DetailSection icon={<InformationCircleIcon className="w-6 h-6" />} title={t('procedures.description')}>
+                    <p className="whitespace-pre-wrap break-words">{procedure.description?.[language] ?? ''}</p>
+                </DetailSection>
+
+                {linkedTasks.length > 0 && (
+                    <DetailSection icon={<ListBulletIcon className="w-6 h-6" />} title={t('procedures.linkedTasks')}>
+                        <ul className="list-disc list-inside space-y-1">
+                            {linkedTasks.map(task => (
+                                <li key={task.id}>{task.description}</li>
+                            ))}
+                        </ul>
+                    </DetailSection>
+                )}
+                
+                {linkedTargets.length > 0 && (
+                    <DetailSection icon={<BoltIcon className="w-6 h-6" />} title={t('procedures.linkedTargets')}>
+                        <ul className="list-disc list-inside space-y-1">
+                            {linkedTargets.map(target => (
+                                <li key={target.id}>{target.name}</li>
+                            ))}
+                        </ul>
+                    </DetailSection>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <DetailSection icon={<ArrowLeftCircleIcon className="w-6 h-6" />} title={t('procedures.inputs')}>
+                        <p className="whitespace-pre-wrap break-words">{procedure.inputs?.[language] || '-'}</p>
+                    </DetailSection>
+                     <DetailSection icon={<ArrowRightCircleIcon className="w-6 h-6" />} title={t('procedures.outputs')}>
+                        <p className="whitespace-pre-wrap break-words">{procedure.outputs?.[language] || '-'}</p>
+                    </DetailSection>
+                </div>
+
+                {procedure.policiesAndReferences?.[language] && (
+                    <DetailSection icon={<BookOpenIcon className="w-6 h-6" />} title={t('procedures.policiesAndReferences')}>
+                        <p className="whitespace-pre-wrap break-words">{procedure.policiesAndReferences[language]}</p>
+                    </DetailSection>
+                )}
+
+                {procedure.technicalSystems?.[language] && (
+                    <DetailSection icon={<ComputerDesktopIcon className="w-6 h-6" />} title={t('procedures.technicalSystems')}>
+                        <p className="whitespace-pre-wrap break-words">{procedure.technicalSystems[language]}</p>
+                    </DetailSection>
+                )}
+                
+                {procedure.formsUsed && procedure.formsUsed.length > 0 && (
+                    <DetailSection icon={<DocumentTextIcon className="w-6 h-6" />} title={t('procedures.formsUsed')}>
+                       <div className="space-y-2">
+                           {procedure.formsUsed.map((form, index) => (
+                               <a key={index} href={`data:${form.file.type};base64,${form.file.content}`} download={form.file.name} className="flex items-center justify-between p-2 rounded-md bg-white dark:bg-natural-700 border dark:border-natural-600 hover:bg-natural-100 dark:hover:bg-natural-600 transition-colors">
+                                   <span>{form.name?.[language] ?? ''}</span>
+                                   <DocumentArrowDownIcon className="w-5 h-5 text-dark-purple-500" />
+                               </a>
+                           ))}
+                       </div>
+                    </DetailSection>
+                )}
+                
+                {procedure.definitions && procedure.definitions.length > 0 && (
+                    <DetailSection icon={<InformationCircleIcon className="w-6 h-6" />} title={t('procedures.definitions')}>
+                       <dl className="space-y-3">
+                           {procedure.definitions.map((def, index) => (
+                               <div key={index}>
+                                   <dt className="font-bold whitespace-pre-wrap break-words">{def.term?.[language] ?? ''}</dt>
+                                   <dd className="ps-4 text-natural-600 dark:text-natural-300 whitespace-pre-wrap break-words">{def.definition?.[language] ?? ''}</dd>
+                               </div>
+                           ))}
+                       </dl>
+                    </DetailSection>
+                )}
+
+                 <div className="flex justify-end items-center p-4 mt-auto border-t border-natural-200 dark:border-natural-700 bg-natural-50 dark:bg-natural-800/50 rounded-b-lg -m-6">
+                    <button onClick={() => onDelete(procedure)} type="button" className="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 dark:text-red-300 dark:bg-red-900/50 dark:hover:bg-red-900">
+                        {t('delete')}
+                    </button>
+                    <button onClick={() => onEdit(procedure)} type="button" className="ms-3 px-4 py-2 text-sm font-medium text-white bg-dark-purple-600 rounded-md hover:bg-dark-purple-700">
+                        {t('edit')}
+                    </button>
+                </div>
+            </div>
+        </Card>
+    );
+};
+
+export default ProcedureInfoCard;

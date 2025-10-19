@@ -1,0 +1,27 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(ts|tsx)",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "text/babel; charset=utf-8"
+          }
+        ]
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "!**/*.@(js|css|html|txt|json|ico|svg|png|jpg|jpeg|gif|ts|tsx)",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

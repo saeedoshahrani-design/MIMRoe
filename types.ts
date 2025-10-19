@@ -1,4 +1,14 @@
+// A string that can be in either Arabic or English
+export type LocalizedString = {
+    en: string;
+    ar: string;
+};
 
+// A list of strings that can be in either Arabic or English
+export type LocalizedStringArray = {
+    en: string[];
+    ar: string[];
+};
 
 export interface Activity {
     description: string;
@@ -6,158 +16,200 @@ export interface Activity {
     is_completed: boolean;
 }
 
+export type PriorityValue = 'منخفض' | 'متوسط' | 'مرتفع';
+
+export type PriorityCategory = 'quick_wins' | 'major_projects' | 'small_quick_wins' | 'not_worth_it';
+
 export interface Challenge {
     type: 'challenge';
-    id: string; // For React key and client-side identification
+    id: string;
     code: string;
-    title_ar: string;
-    title_en: string;
+    title: string;
     description: string;
     status: 'جديد' | 'قيد المعالجة' | 'قيد المراجعة' | 'مغلق';
-    priority: 'عالي' | 'متوسط' | 'منخفض';
+    priority: 'منخفض' | 'متوسط' | 'عالي';
     category: 'تشغيلي' | 'تقني' | 'حوكمة' | 'موارد بشرية' | 'تنظيمي' | 'خارجي';
-    impact: 'منخفض' | 'متوسط' | 'مرتفع';
-    effort: 'منخفض' | 'متوسط' | 'مرتفع';
-    priority_category: 'quick_wins' | 'major_projects' | 'small_quick_wins' | 'not_worth_it';
+    impact: PriorityValue;
+    effort: PriorityValue;
+    priority_category: PriorityCategory;
     priority_score: number;
     progress_notes: string;
     remediation_plan: string;
     requirements_enablers: string;
     activities: Activity[];
-    department: string;
-    start_date: string;
-    target_date: string;
-    created_at: string;
-    updated_at: string;
+    department: string; // Arabic department name
+    start_date: string; // ISO date string YYYY-MM-DD
+    target_date: string; // ISO date string YYYY-MM-DD
+    created_at: string; // ISO datetime string
+    updated_at: string; // ISO datetime string
     is_archived: boolean;
     linkedTargetIds?: string[];
-    // Optional properties for Gantt calculation
-    actual_percent?: number;
-    planned_percent_today?: number;
+    actual_percent?: number; // Calculated for Gantt
+    planned_percent_today?: number; // Calculated for Gantt
 }
 
 export type OpportunityStatus = 'Under Review' | 'In Progress' | 'Implemented' | 'On Hold';
-
-export type OpportunityPriority = 'عالي' | 'متوسط' | 'منخفض';
 
 export interface Opportunity {
     type: 'opportunity';
     id: string;
     code: string;
-    title: string;
-    department: string;
+    title: LocalizedString;
+    department: string; // Arabic department name
     status: OpportunityStatus;
-    impact: 'منخفض' | 'متوسط' | 'مرتفع';
-    effort: 'منخفض' | 'متوسط' | 'مرتفع';
-    priority: OpportunityPriority;
-    priority_category: 'quick_wins' | 'major_projects' | 'small_quick_wins' | 'not_worth_it';
+    impact: PriorityValue;
+    effort: PriorityValue;
+    priority: Challenge['priority'];
+    priority_category: PriorityCategory;
     priority_score: number;
-    currentSituation: string;
-    proposedSolution: string;
+    currentSituation: LocalizedString;
+    proposedSolution: LocalizedString;
     progress: number;
-    owner?: string;
-    startDate?: string;
-    dueDate?: string;
+    owner: LocalizedString;
+    startDate: string; // ISO date string YYYY-MM-DD
+    dueDate: string; // ISO date string YYYY-MM-DD
+    createdAt: string; // ISO datetime string
+    updatedAt: string; // ISO datetime string
     notes?: string;
     linkedTargetIds?: string[];
-    createdAt: string;
-    updatedAt: string;
+    isAiGenerated?: boolean;
+    linkedProcedureId?: string;
+    linkedProcedureCode?: string;
+    linkedProcedureTitle?: LocalizedString;
 }
 
 export type Initiative = Challenge | Opportunity;
 
 export interface Department {
     id: string;
-    name: { en: string; ar: string; };
+    name: LocalizedString;
+    type: 'department' | 'directorate';
+}
+
+export type LeadTaskCategory = 'strategic' | 'communication' | 'development' | 'operational' | 'additional';
+
+export interface LeadTask {
+    id: string;
+    text: LocalizedString;
+}
+
+export interface LeadTasksData {
+    leaderName: LocalizedString;
+    tasks: Record<LeadTaskCategory, LeadTask[]>;
 }
 
 export interface Employee {
-  id: string;
-  name: { en: string; ar: string };
-  title: { en: string; ar: string };
-  department: { en: string; ar: string };
-  avatar: string; // URL or empty string for placeholder
-  joinDate: string; // ISO 8601 format
-  experienceYears: number;
-  qualifications: { en: string[]; ar: string[] };
-  certifications: { en: string[]; ar: string[] };
-  trainingCourses: { en: string[]; ar: string[] };
-  tasks: { en: string[]; ar:string[] };
-  achievements: { en: string[]; ar: string[] };
+    id: string;
+    name: LocalizedString;
+    title: LocalizedString;
+    department: LocalizedString;
+    avatar: string;
+    joinDate: string; // ISO date string
+    experienceYears: number;
+    qualifications: LocalizedStringArray;
+    certifications: LocalizedStringArray;
+    trainingCourses: LocalizedStringArray;
+    tasks: LocalizedStringArray;
+    achievements: LocalizedStringArray;
 }
 
-export type LocalizedString = {
-  ar: string;
-  en: string;
-};
+export type EReadiness = 'electronic' | 'partially-electronic' | 'not-electronic';
 
-export interface ProcedureFormFile {
-  name: string;
-  type: string;
-  content: string; // base64 encoded
+export interface Kpi {
+    id: string;
+    name: LocalizedString;
+    target: LocalizedString;
+    description: LocalizedString;
+    isAiGenerated?: boolean;
+}
+
+export interface AttachedFile {
+    name: string;
+    type: string; // Mime type
+    content: string; // base64
 }
 
 export interface ProcedureForm {
-  name: LocalizedString;
-  file: ProcedureFormFile;
+    name: LocalizedString;
+    file: AttachedFile;
 }
 
 export interface Definition {
-  id: string; // For client-side key
-  term: LocalizedString;
-  definition: LocalizedString;
+    id: string;
+    term: LocalizedString;
+    definition: LocalizedString;
 }
 
-export interface Kpi {
-  name: LocalizedString;
-  target: LocalizedString;
-  description: LocalizedString;
+export interface ProcedureStep {
+    id: string;
+    stepName: string;
+    description: string;
+    department: string;
+    responsible: string;
+    durationHours: number;
+    waitHours: number;
+    waitDays: number;
+    systemUsed: string;
+}
+
+export interface ChangeLogEntry {
+    id: string;
+    type: 'add' | 'edit' | 'delete';
+    element: 'card' | 'steps' | 'kpis';
+    description: string; // AI-generated or manual
+    timestamp: string; // ISO string
+    isManual?: boolean;
 }
 
 export interface Procedure {
-  id: string;
-  code: string;
-  title: LocalizedString;
-  description: LocalizedString;
-  inputs: LocalizedString;
-  outputs: LocalizedString;
-  policiesAndReferences?: LocalizedString;
-  technicalSystems?: LocalizedString;
-  formsUsed?: ProcedureForm[];
-  definitions?: Definition[];
-  kpi?: Kpi;
-  departmentId: string;
-  linkedService?: LocalizedString;
-  durationDays?: number;
-  eReadiness: 'electronic' | 'partially-electronic' | 'not-electronic';
-  createdAt: string;
-  updatedAt: string;
+    id: string;
+    code: string;
+    title: LocalizedString;
+    description: LocalizedString;
+    inputs: LocalizedString;
+    outputs: LocalizedString;
+    departmentId: string;
+    eReadiness: EReadiness;
+    createdAt: string;
+    updatedAt: string;
+    kpis: Kpi[];
+    linkedTaskIds?: string[];
+    linkedTargetIds?: string[];
+    policiesAndReferences?: LocalizedString;
+    technicalSystems?: LocalizedString;
+    linkedService?: LocalizedString;
+    durationDays?: number;
+    formsUsed?: ProcedureForm[];
+    definitions?: Definition[];
+    steps?: ProcedureStep[];
+    changeLog?: ChangeLogEntry[];
 }
 
-
-export type PerformanceStatus = 'onTrack' | 'behind' | 'ahead';
+export type PerformanceStatus = 'ahead' | 'onTrack' | 'behind';
 
 export interface DashboardFilters {
-  timeRange: 'all' | '30' | '90' | 'custom';
-  customDateRange: {
-    start: string | null;
-    end: string | null;
-  };
-  selectedDepartments: string[];
-  selectedStatuses: Challenge['status'][];
-  selectedPerformance: PerformanceStatus[];
-  searchTerm: string;
+    timeRange: '30' | '90' | 'all' | 'custom';
+    customDateRange: { start: string | null, end: string | null };
+    selectedDepartments: string[];
+    selectedStatuses: Challenge['status'][];
+    selectedPerformance: PerformanceStatus[];
+    searchTerm: string;
 }
 
 export interface OpportunityDashboardFilters {
     searchTerm: string;
     selectedDepartments: string[];
     selectedStatuses: OpportunityStatus[];
-    dateRange: {
-        start: string | null;
-        end: string | null;
-    };
+    dateRange: { start: string | null; end: string | null; };
 }
+
+export interface InitiativeDashboardFilters {
+    searchTerm: string;
+    selectedDepartments: string[];
+    selectedPerformance: PerformanceStatus[];
+    dateRange: { start: string | null; end: string | null; };
+}
+
 export interface DepartmentTask {
     id: string;
     description: string;
@@ -166,7 +218,7 @@ export interface DepartmentTask {
     updatedAt: string;
 }
 
-export type TargetUnit = 'percentage' | 'number' | 'days';
+export type TargetUnit = 'percentage' | 'number' | 'currency' | 'days';
 export type TargetStatus = 'onTrack' | 'atRisk' | 'behind';
 
 export interface DepartmentTarget {
@@ -188,35 +240,60 @@ export interface DepartmentData {
     targets: DepartmentTarget[];
 }
 
-
-// Business Timeline Types
-export type TaskSource = 'linked' | 'manual';
-
 export interface TimelineTask {
-  id: string;
-  seq: number;
-  title: string;
-  code?: string;
-  department?: string;
-  start: string | Date;
-  end: string | Date;
-  actual_percent: number;
-  planned_percent_today?: number;
-  status: Challenge['status']; // Using Challenge status as the canonical one for color mapping
-  source: TaskSource;
-  description?: string;
+    id: string;
+    seq: number;
+    title: string;
+    code?: string;
+    department?: string;
+    start: string | Date;
+    end: string | Date;
+    actual_percent: number;
+    planned_percent_today?: number;
+    status: Challenge['status'];
+    source: 'linked' | 'manual';
+    description?: string;
+    assignee?: string;
 }
 
-// Lead Tasks Types
-export interface LeadTask {
-  id: string;
-  text: string;
+export interface InitiativeAxis {
+    id: string;
+    text: LocalizedString;
 }
 
-export type LeadTaskCategory = 'strategic' | 'communication' | 'development' | 'operational' | 'additional';
+export interface InitiativeMember {
+    id: string;
+    name: LocalizedString;
+    role: LocalizedString;
+    tasks: LocalizedString;
+}
 
-export interface LeadTasksData {
-  leaderName: string;
-  leaderPhoto: string;
-  tasks: Record<LeadTaskCategory, LeadTask[]>;
+export interface InitiativeTask {
+    id: string;
+    seq: number;
+    title: string;
+    description: string;
+    assignee: string;
+    start: string; // ISO date string
+    end: string; // ISO date string
+    status: Challenge['status'];
+    actual_percent: number;
+}
+
+export interface StrategicInitiative {
+    id: string;
+    name: LocalizedString;
+    description: LocalizedString;
+    owner: LocalizedString;
+    associatedDepartments: string[]; // Arabic department names
+    otherAssociatedDepartments: LocalizedString;
+    outcomes: LocalizedString;
+    strategicAlignment: LocalizedString;
+    startDate: string; // ISO date string
+    endDate: string; // ISO date string
+    members: InitiativeMember[];
+    tasks: InitiativeTask[];
+    axes: InitiativeAxis[];
+    createdAt: string;
+    updatedAt: string;
 }

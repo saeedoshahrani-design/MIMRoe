@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import { Page } from '../App';
+import { Page } from '../App.tsx';
 
 interface AppContextType {
     theme: 'light' | 'dark';

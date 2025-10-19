@@ -2,9 +2,10 @@ import React from 'react';
 import { useLocalization } from '../hooks/useLocalization';
 import { Opportunity, OpportunityStatus } from '../types';
 import Card from './Card';
-import { EyeIcon, PencilIcon, TrashIcon } from './icons/IconComponents';
+import { EyeIcon, PencilIcon, TrashIcon, SparklesIcon, LinkIcon } from './icons/IconComponents';
 import { getPriorityBadgeStyle } from '../utils/priority';
 import { locales } from '../i18n/locales';
+import { translateDepartment } from '../utils/localizationUtils';
 
 interface OpportunityCardProps {
     opportunity: Opportunity;
@@ -47,13 +48,13 @@ const getStatusChipStyle = (status: OpportunityStatus) => {
 };
 
 const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onEdit, onDelete, onViewDetails }) => {
-    const { t } = useLocalization();
+    const { t, language } = useLocalization();
 
     return (
         <Card className="border-bright-blue-500 dark:border-bright-blue-500">
             <div className="flex justify-between items-start gap-4">
                  <div className="flex-1 text-left rtl:text-right min-w-0">
-                    <div className="flex items-center space-x-2 rtl:space-x-reverse mb-2">
+                    <div className="flex items-center flex-wrap gap-2 mb-2">
                         <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-yellow-500 text-natural-900 dark:bg-yellow-400 dark:text-natural-900">
                             {opportunity.code}
                         </span>
@@ -61,11 +62,21 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onEdit, 
                             className={`px-2 py-1 text-xs font-bold rounded-full ${getPriorityBadgeStyle(opportunity.priority_category)}`}
                             title={t('challenges.priorityBadgeTooltip')}
                         >
-                            {t(`challenges.priorityCategories.${opportunity.priority_category as keyof typeof locales.en.challenges.priorityCategories}`)}
+                            {t(`challenges.priorityCategories.${String(opportunity.priority_category)}`)}
                         </span>
+                        {opportunity.isAiGenerated && (
+                            <span title={t('procedures.aiGeneratedKpiTooltip')} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-full bg-bright-blue-100 text-bright-blue-800 dark:bg-bright-blue-900 dark:text-bright-blue-200">
+                                <SparklesIcon className="w-3 h-3" /> AI
+                            </span>
+                        )}
+                         {opportunity.linkedProcedureCode && (
+                            <span title={`${t('opportunities.linkedProcedure')}: ${opportunity.linkedProcedureTitle?.[language]}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-mono rounded-full bg-natural-200 text-natural-700 dark:bg-natural-700 dark:text-natural-200">
+                                <LinkIcon className="w-3 h-3" /> {opportunity.linkedProcedureCode}
+                            </span>
+                        )}
                     </div>
-                    <h3 className="font-bold text-lg text-natural-800 dark:text-natural-100 break-words">{opportunity.title}</h3>
-                    <p className="text-sm font-medium text-natural-500 dark:text-natural-400 mt-1">{opportunity.department}</p>
+                    <h3 className="font-bold text-lg text-natural-800 dark:text-natural-100 break-words">{opportunity.title[language]}</h3>
+                    <p className="text-sm font-medium text-natural-500 dark:text-natural-400 mt-1">{translateDepartment(opportunity.department, language)}</p>
                 </div>
                 <div className="flex flex-col items-end flex-shrink-0 space-y-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusChipStyle(opportunity.status)}`}>
@@ -73,7 +84,7 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onEdit, 
                     </span>
                 </div>
             </div>
-            <p className="mt-2 text-sm text-natural-600 dark:text-natural-300 line-clamp-2 break-words whitespace-pre-line">{opportunity.proposedSolution}</p>
+            <p className="mt-2 text-sm text-natural-600 dark:text-natural-300 line-clamp-2 break-words whitespace-pre-line">{opportunity.proposedSolution[language]}</p>
             
             <div className="mt-4 border-t border-natural-200 dark:border-natural-700 pt-4">
                  <div className="w-full" aria-label={t('challenges.progress')}>
@@ -99,21 +110,21 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onEdit, 
                     <ActionButton
                         onClick={() => onViewDetails(opportunity)}
                         label={t('viewDetails')}
-                        ariaLabel={`${t('viewDetails')} for ${opportunity.title}`}
+                        ariaLabel={`${t('viewDetails')} for ${opportunity.title[language]}`}
                         icon={<EyeIcon className="h-5 w-5" />}
                         className="text-natural-500 hover:bg-natural-100 dark:hover:bg-natural-700 hover:text-dark-purple-600 dark:hover:text-dark-purple-400"
                     />
                     <ActionButton
                         onClick={() => onEdit(opportunity)}
                         label={t('edit')}
-                        ariaLabel={`${t('edit')} for ${opportunity.title}`}
+                        ariaLabel={`${t('edit')} for ${opportunity.title[language]}`}
                         icon={<PencilIcon className="h-5 w-5" />}
                         className="text-natural-500 hover:bg-natural-100 dark:hover:bg-natural-700 hover:text-dark-purple-600 dark:hover:text-dark-purple-400"
                     />
                     <ActionButton
                         onClick={() => onDelete(opportunity)}
                         label={t('delete')}
-                        ariaLabel={`${t('delete')} for ${opportunity.title}`}
+                        ariaLabel={`${t('delete')} for ${opportunity.title[language]}`}
                         icon={<TrashIcon className="h-5 w-5" />}
                         className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/50 hover:text-red-700 dark:hover:text-red-400"
                     />

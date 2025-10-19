@@ -1,64 +1,61 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import type { Challenge, TimelineTask } from '../../types';
 import { useLocalization } from '../../hooks/useLocalization';
-import { departments } from '../../data/mockData';
-import {
-    LayersIcon, CheckCircleIcon, AlertTriangleIcon, MapIcon, FolderIcon, ShieldIcon
-} from '../icons/IconComponents';
 import { locales } from '../../i18n/locales';
+import { translateDepartment, translateChallengeField } from '../../utils/localizationUtils';
+import { calculatePlannedProgress } from '../../utils/calculatePlannedProgress';
 
-type ChallengeStatus = Challenge['status'];
+type GanttTask = TimelineTask;
 
 interface BusinessGanttChartProps {
-  challenges: (Challenge & { actual_percent: number; planned_percent_today: number })[];
-  onChallengeClick: (challenge: Challenge) => void;
+  challenges: Challenge[];
   manualTasks: TimelineTask[];
-  onAddManualTaskRequest: () => void;
+  onChallengeClick: (challenge: Challenge) => void;
   onManualTaskClick: (task: TimelineTask) => void;
+  onAddManualTaskRequest: () => void;
 }
 
 const getUTCMidnight = (date: Date | string): Date => {
+  if (!date) return new Date(0);
+  
+  // For "YYYY-MM-DD" strings, which is what we get from Firestore,
+  // parse them as UTC to avoid browser inconsistencies
+  // where they might be treated as local time.
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const [year, month, day] = date.split('-').map(Number);
+      // Month is 0-indexed in Date.UTC
+      return new Date(Date.UTC(year, month - 1, day));
+  }
+
+  // For full Date objects (like `new Date()` for "today") or other date string formats
   const d = new Date(date);
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 };
+
 
 const daysBetweenUTC = (date1: Date, date2: Date): number => {
   const oneDay = 1000 * 60 * 60 * 24;
   return (date2.getTime() - date1.getTime()) / oneDay;
 };
 
-// Sunday as the first day of the week
 const getWeekNumber = (d: Date): number => {
     const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    // Sunday is 0, Monday is 1, etc.
-    const dayNum = date.getUTCDay();
-    // Set to previous Sunday
-    date.setUTCDate(date.getUTCDate() - dayNum);
+    // Set to nearest Thursday: current date + 4 - current day number
+    // Make Sunday's day number 7
+    date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+    // Get first day of year
     const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-    // Calculate full weeks to nearest Sunday
-    return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    // Calculate full weeks to nearest Thursday
+    const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return weekNo;
 };
 
 
-const statusColors: Record<ChallengeStatus, string> = {
+const statusColors: Record<Challenge['status'], string> = {
     'جديد': '#7A8595',
     'قيد المعالجة': '#FF8C32',
     'مغلق': '#18C37E',
     'قيد المراجعة': '#A58BD3'
-};
-
-const DepartmentIcon: React.FC<{ deptId?: string }> = ({ deptId }) => {
-    if (!deptId) return null;
-    const deptObject = departments.find(d => d.name.ar === deptId);
-    const deptNumericId = deptObject ? deptObject.id : null;
-    
-    const iconMap: { [key: string]: React.FC<React.SVGProps<SVGSVGElement>> } = {
-        '1': LayersIcon, '2': CheckCircleIcon, '3': AlertTriangleIcon, '4': MapIcon, '5': FolderIcon, '6': ShieldIcon,
-    };
-    const IconComponent = deptNumericId ? iconMap[deptNumericId] : null;
-    if (!IconComponent) return <div className="w-3.5 h-3.5 rounded-full bg-gray-400" />;
-    
-    return <IconComponent className="w-3.5 h-3.5 text-gray-400" />;
 };
 
 const GanttSkeleton: React.FC = () => (
@@ -67,7 +64,14 @@ const GanttSkeleton: React.FC = () => (
     </div>
 );
 
-const BusinessGanttChart: React.FC<BusinessGanttChartProps> = ({ challenges, onChallengeClick, manualTasks, onAddManualTaskRequest, onManualTaskClick }) => {
+
+const BusinessGanttChart: React.FC<BusinessGanttChartProps> = ({
+  challenges,
+  manualTasks,
+  onChallengeClick,
+  onManualTaskClick,
+  onAddManualTaskRequest,
+}) => {
   const { t, language, formatDate } = useLocalization();
   const [dayWidth, setDayWidth] = useState(18);
   const zoomLevels = [14, 18, 22];
@@ -76,30 +80,43 @@ const BusinessGanttChart: React.FC<BusinessGanttChartProps> = ({ challenges, onC
   const timelineHeaderRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 500);
     return () => clearTimeout(timer);
   }, []);
-  
-  const allTasks = useMemo(() => {
-    const linkedTasks: TimelineTask[] = challenges.map(c => ({
-      id: c.id,
-      seq: 0,
-      title: language === 'ar' ? c.title_ar : c.title_en,
-      code: c.code,
-      department: c.department,
-      start: c.start_date,
-      end: c.target_date,
-      actual_percent: c.actual_percent ?? 0,
-      planned_percent_today: c.planned_percent_today,
-      status: c.status,
-      source: 'linked',
-      description: c.description
+
+  const allTasks: GanttTask[] = useMemo(() => {
+    const challengesWithSeq = challenges.map((c, index) => ({
+        ...c,
+        id: c.id,
+        seq: index, // temporary seq
+        title: c.title,
+        start: c.start_date,
+        end: c.target_date,
+        source: 'linked' as 'linked',
+        actual_percent: c.actual_percent || 0,
+        planned_percent_today: calculatePlannedProgress(c.start_date, c.target_date),
     }));
 
-    return [...linkedTasks, ...manualTasks].sort((a,b) => +new Date(a.start) - +new Date(b.start));
-  }, [challenges, manualTasks, language]);
+    const manualTasksWithSeq = manualTasks.map((t, index) => ({ 
+        ...t, 
+        seq: challenges.length + index, // temporary seq
+        planned_percent_today: calculatePlannedProgress(t.start, t.end),
+    }));
+    
+    // Sort all tasks by start date using UTC for consistency
+    // FIX: Replaced problematic sort logic with a safer method that explicitly creates Date objects and uses getTime().
+    const sorted = [...challengesWithSeq, ...manualTasksWithSeq].sort((a,b) => {
+        const dateA = a.start instanceof Date ? a.start : new Date(a.start);
+        const dateB = b.start instanceof Date ? b.start : new Date(b.start);
+        return dateA.getTime() - dateB.getTime();
+    });
+
+    // Assign final sequence number based on sorted order
+    return sorted.map((task, index) => ({...task, seq: index + 1}));
+
+  }, [challenges, manualTasks]);
+
 
   const { timeScale, months, weeks, days } = useMemo(() => {
     if (allTasks.length === 0) {
@@ -136,7 +153,7 @@ const BusinessGanttChart: React.FC<BusinessGanttChartProps> = ({ challenges, onC
         generatedDays.forEach((day, index) => {
             if (day.getUTCMonth() !== currentMonth) {
                 currentMonth = day.getUTCMonth();
-                const monthName = locales.en.months[day.getUTCMonth()]; // Always use Gregorian month name
+                const monthName = locales.en.months[day.getUTCMonth()];
                 const year = day.getUTCFullYear();
                 generatedMonths.push({
                     name: `${monthName} ${year}`,
@@ -174,6 +191,15 @@ const BusinessGanttChart: React.FC<BusinessGanttChartProps> = ({ challenges, onC
       days: generatedDays,
     };
   }, [allTasks, language]);
+  
+  const handleTaskClick = (task: GanttTask) => {
+    if (task.source === 'linked') {
+        const originalChallenge = challenges.find(c => c.id === task.id);
+        if(originalChallenge) onChallengeClick(originalChallenge);
+    } else {
+        onManualTaskClick(task);
+    }
+  };
 
   const handleZoom = (direction: 'in' | 'out') => {
       const currentIndex = zoomLevels.indexOf(dayWidth);
@@ -184,24 +210,12 @@ const BusinessGanttChart: React.FC<BusinessGanttChartProps> = ({ challenges, onC
           setDayWidth(zoomLevels[currentIndex - 1]);
       }
   };
-
-  const handleTaskClick = (task: TimelineTask) => {
-    if (task.source === 'manual') {
-      onManualTaskClick(task);
-    } else {
-      const originalChallenge = challenges.find(c => c.id === task.id);
-      if (originalChallenge) {
-        onChallengeClick(originalChallenge);
-      }
-    }
-  };
   
   const handleScroll = () => {
     if (timelineHeaderRef.current && scrollContainerRef.current) {
         timelineHeaderRef.current.scrollLeft = scrollContainerRef.current.scrollLeft;
     }
   };
-
 
   const todayPosition = useMemo(() => {
     const todayUTC = getUTCMidnight(new Date());
@@ -216,7 +230,6 @@ const BusinessGanttChart: React.FC<BusinessGanttChartProps> = ({ challenges, onC
 
   return (
     <div className="bg-white dark:bg-natural-800 rounded-lg shadow-md border dark:border-natural-700 text-sm h-full flex flex-col" dir="rtl">
-        {/* HEADER */}
         <div className="flex flex-shrink-0">
             <div className="w-[360px] flex-shrink-0 z-10 sticky right-0 bg-natural-50 dark:bg-natural-800/80">
                  <div className="flex items-center justify-between px-3 h-[52px] border-b border-l border-natural-200 dark:border-natural-700">
@@ -255,10 +268,8 @@ const BusinessGanttChart: React.FC<BusinessGanttChartProps> = ({ challenges, onC
             </div>
         </div>
         
-        {/* SCROLLABLE CONTENT */}
         <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-grow overflow-auto">
             <div className="flex min-w-max relative">
-                {/* Side Panel */}
                 <div className="w-[360px] flex-shrink-0 bg-white dark:bg-natural-800 z-10 sticky right-0">
                     {allTasks.map((task) => (
                         <div 
@@ -266,25 +277,20 @@ const BusinessGanttChart: React.FC<BusinessGanttChartProps> = ({ challenges, onC
                           className="bg-white dark:bg-natural-800 grid grid-cols-[48px,1fr,auto] items-center px-3 h-[44px] border-b border-l dark:border-l-natural-700/50 dark:border-natural-700/50 cursor-pointer hover:bg-natural-50 dark:hover:bg-natural-700/30" 
                           onClick={() => handleTaskClick(task)}
                         >
-                            <span className="text-center text-sm text-natural-500">{task.source === 'manual' ? task.seq : ''}</span>
+                            <span className="text-center text-sm text-natural-500">{task.seq}</span>
                             <p className="font-medium text-natural-800 dark:text-natural-200 truncate mx-2 text-sm" title={task.title}>
+                                {task.source === 'linked' && task.code && <span className="font-mono text-xs bg-natural-100 dark:bg-natural-700 px-1 rounded-sm mr-2">{task.code}</span>}
                                 {task.title}
                             </p>
                              <div className="flex items-center gap-2 justify-self-end">
-                                 {task.code && (
-                                     <span className="flex-shrink-0 w-[68px] h-6 flex items-center justify-center text-[12px] font-semibold bg-natural-100 dark:bg-natural-700 text-natural-600 dark:text-natural-300 rounded-full">
-                                        {task.code}
-                                     </span>
-                                 )}
-                                <div className="flex-shrink-0" title={task.department}>
-                                    <DepartmentIcon deptId={task.department} />
+                                <div className="flex-shrink-0 text-xs text-natural-500 dark:text-natural-400 truncate max-w-[80px] text-right" title={task.department ? translateDepartment(task.department, language) : ''}>
+                                    {task.department ? translateDepartment(task.department, language) : ''}
                                 </div>
                              </div>
                         </div>
                     ))}
                 </div>
 
-                {/* Gantt Area */}
                 <div className="flex-grow">
                   <div className="relative" style={{ height: allTasks.length * 44, width: timeScale.totalDays * dayWidth }}>
                       {days.map((day, i) => {
@@ -336,24 +342,16 @@ const BusinessGanttChart: React.FC<BusinessGanttChartProps> = ({ challenges, onC
                                             </div>
                                         )}
                                     </div>
-                                    
-                                    {task.planned_percent_today && task.planned_percent_today > 0 && (
-                                        <div
-                                            className="absolute top-[-2px] bottom-[-2px] w-px bg-dark-purple-500/70 dark:bg-dark-purple-300/70 z-10"
-                                            style={{ right: `${task.planned_percent_today}%` }}
-                                            title={`${t('gantt_planned')}: ${task.planned_percent_today.toFixed(0)}%`}
-                                        ></div>
-                                    )}
 
                                     <div className="absolute z-30 bottom-full mb-2 right-1/2 translate-x-1/2 w-64 p-3 bg-natural-900 text-white text-xs rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity" role="tooltip">
-                                          <p className="font-bold text-sm mb-1 truncate">{`${task.code ?? ''}: ${task.title}`}</p>
-                                          <p className="text-natural-300 text-xs truncate">{`${task.department || ''} • ${task.status}`}</p>
+                                          <p className="font-bold text-sm mb-1 truncate">{task.title}</p>
+                                          <p className="text-natural-300 text-xs truncate">{`${task.department ? translateDepartment(task.department, language) : ''} • ${translateChallengeField('status', task.status, t)}`}</p>
                                           <hr className="my-2 border-natural-600" />
                                           <div className="grid grid-cols-[1fr,auto] gap-x-2 text-[11px]">
-                                              <span>{t('gantt_plannedProgress')}:</span><span className="font-semibold">{task.planned_percent_today?.toFixed(0) ?? 0}%</span>
+                                              <span>{t('gantt_plannedProgress')}:</span><span className="font-semibold">{Math.round(task.planned_percent_today ?? 0)}%</span>
                                               <span>{t('gantt_actualProgress')}:</span><span className="font-semibold">{Math.round(task.actual_percent)}%</span>
-                                              <span>{t('planned_start')}:</span><span className="font-semibold">{formatDate(task.start as string)}</span>
-                                              <span>{t('planned_end')}:</span><span className="font-semibold">{formatDate(task.end as string)}</span>
+                                              <span>{t('planned_start')}:</span><span className="font-semibold">{formatDate(task.start instanceof Date ? task.start.toISOString() : task.start)}</span>
+                                              <span>{t('planned_end')}:</span><span className="font-semibold">{formatDate(task.end instanceof Date ? task.end.toISOString() : task.end)}</span>
                                           </div>
                                           <div className="absolute -bottom-1 right-1/2 translate-x-1/2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-natural-900"></div>
                                       </div>

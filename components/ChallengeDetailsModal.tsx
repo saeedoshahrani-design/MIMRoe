@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
-import { useLocalization } from '../../hooks/useLocalization';
-import { Challenge } from '../../types';
+import { useLocalization } from '../hooks/useLocalization';
+import { Challenge } from '../types';
 import { CloseIcon } from './icons/IconComponents';
 import UnifiedProgressBar from './UnifiedProgressBar';
 import { calculateProgress } from '../utils/calculateProgress';
@@ -9,6 +9,7 @@ import { locales } from '../i18n/locales';
 import { useDepartmentsData } from '../context/DepartmentsDataContext';
 import { departments } from '../data/mockData';
 import PriorityBadge from './PriorityBadge';
+import { translateChallengeField, translateDepartment } from '../utils/localizationUtils';
 
 interface ChallengeDetailsModalProps {
     isOpen: boolean;
@@ -107,8 +108,8 @@ const ChallengeDetailsModal: React.FC<ChallengeDetailsModalProps> = ({ isOpen, c
                             </span>
                              <PriorityBadge priorityCategory={challenge.priority_category} />
                         </div>
-                        <h1 className="text-xl font-bold text-natural-800 dark:text-natural-100 break-words">{language === 'ar' ? challenge.title_ar : challenge.title_en}</h1>
-                        <p className="text-sm font-medium text-natural-500 dark:text-natural-400 mt-1">{t('challenges.detailsModal.responsibleDepartment')}: <span className="font-semibold">{challenge.department}</span></p>
+                        <h1 className="text-xl font-bold text-natural-800 dark:text-natural-100 break-words">{challenge.title}</h1>
+                        <p className="text-sm font-medium text-natural-500 dark:text-natural-400 mt-1">{t('challenges.detailsModal.responsibleDepartment')}: <span className="font-semibold">{translateDepartment(challenge.department, language)}</span></p>
                     </div>
 
                     <DetailSection title={t('challenges.progress')}>
@@ -127,10 +128,10 @@ const ChallengeDetailsModal: React.FC<ChallengeDetailsModalProps> = ({ isOpen, c
 
                     <DetailSection title={t('challenges.detailsModal.summary')}>
                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <DetailItem label={t('challenges.category')} value={challenge.category} />
-                            <DetailItem label={t('challenges.status')} value={challenge.status} />
-                            <DetailItem label={t('challenges.modal.impact')} value={challenge.impact} />
-                            <DetailItem label={t('challenges.modal.effort')} value={challenge.effort} />
+                            <DetailItem label={t('challenges.category')} value={translateChallengeField('category', challenge.category, t)} />
+                            <DetailItem label={t('challenges.status')} value={translateChallengeField('status', challenge.status, t)} />
+                            <DetailItem label={t('challenges.modal.impact')} value={translateChallengeField('impact', challenge.impact, t)} />
+                            <DetailItem label={t('challenges.modal.effort')} value={translateChallengeField('effort', challenge.effort, t)} />
                         </div>
                     </DetailSection>
 

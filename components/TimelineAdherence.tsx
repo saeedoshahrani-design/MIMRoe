@@ -3,6 +3,7 @@ import { useLocalization } from '../hooks/useLocalization';
 import { Challenge } from '../types';
 import { useAppContext } from '../context/AppContext';
 import { locales } from '../i18n/locales';
+import { translateDepartment } from '../utils/localizationUtils';
 
 interface AdherenceData {
     name: string;
@@ -30,7 +31,7 @@ const TimelineAdherence: React.FC<TimelineAdherenceProps> = ({ data, onDepartmen
             {data.map(dept => (
                 <div key={dept.name} onClick={() => onDepartmentClick(dept)} className="p-3 rounded-lg hover:bg-natural-100 dark:hover:bg-natural-700/50 cursor-pointer transition-colors">
                     <div className="flex justify-between items-center mb-1.5">
-                        <p className="text-sm font-semibold text-natural-800 dark:text-natural-100 truncate">{dept.name}</p>
+                        <p className="text-sm font-semibold text-natural-800 dark:text-natural-100 truncate">{translateDepartment(dept.name, language)}</p>
                     </div>
                     <div className="relative h-3 w-full bg-natural-200 dark:bg-natural-700 rounded-full overflow-hidden">
                         <div className="absolute h-3 bg-dark-purple-300 dark:bg-dark-purple-800 rounded-full transition-all duration-500" style={{ width: `${dept.avgPlanned}%` }} />

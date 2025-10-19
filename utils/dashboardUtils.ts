@@ -64,9 +64,8 @@ export const filterChallenges = (challenges: Challenge[], filters: DashboardFilt
         // Search Term Filter
         if (searchTerm) {
              const matchesSearch = 
-                c.title_ar.toLowerCase().includes(lowerSearchTerm) ||
-                c.title_en.toLowerCase().includes(lowerSearchTerm) ||
-                c.code.toLowerCase().includes(lowerSearchTerm);
+                (c.title || '').toLowerCase().includes(lowerSearchTerm) ||
+                (c.code || '').toLowerCase().includes(lowerSearchTerm);
             if (!matchesSearch) return false;
         }
 
@@ -148,9 +147,10 @@ export const prepareMonthlyTrendsData = (challenges: Challenge[]) => {
             acc[month].completed++;
         }
         return acc;
-    }, {} as Record<string, any>);
+        // FIX: Provide a type for the accumulator to resolve 'unknown' type errors.
+    }, {} as Record<string, { name: string; created: number; completed: number; date: Date; }>);
 
-    return Object.values(trends).sort((a,b) => a.date - b.date);
+    return Object.values(trends).sort((a,b) => a.date.getTime() - b.date.getTime());
 };
 
 export const prepareChallengesAgingData = (challenges: Challenge[], t: (key: string) => string) => {
@@ -211,8 +211,12 @@ export const prepareTimelineAdherenceData = (challenges: Challenge[]) => {
 export const prepareStatusDistributionData = (challenges: Challenge[], t: (key: string) => string) => {
     if (!challenges) return [];
     const statusCounts = challenges.reduce((acc, c) => {
-        const statusKey = c.status as keyof typeof locales.en.dashboard.chartStatus;
-        const translatedStatus = t(`dashboard.chartStatus.${statusKey}`);
+        // FIX: Cast locale object to Record<string, string> and simplify key lookup to prevent type errors.
+        const arStatusOptions = locales.ar.dashboard.chartStatus as Record<string, string>;
+        const statusKey = Object.keys(arStatusOptions).find(key => arStatusOptions[key] === c.status);
+        
+        const translatedStatus = statusKey ? t(`dashboard.chartStatus.${statusKey}`) : c.status;
+
         acc[translatedStatus] = (acc[translatedStatus] || 0) + 1;
         return acc;
     }, {} as Record<string, number>);
@@ -223,14 +227,15 @@ export const prepareStatusDistributionData = (challenges: Challenge[], t: (key: 
 export const prepareCategoryDistributionData = (challenges: Challenge[], t: (key: string, replacements?: Record<string, string | number>) => string) => {
     if (!challenges) return [];
     const categoryCounts = challenges.reduce((acc, c) => {
-        const categoryKeyMap: Record<string, keyof typeof locales.en.challenges.categoryOptions> = {
-            'تشغيلي': 'operational', 'تقني': 'technical', 'حوكمة': 'governance', 
-            'موارد بشرية': 'hr', 'تنظيمي': 'organizational', 'خارجي': 'external'
-        };
-        const categoryKey = categoryKeyMap[c.category];
+        // FIX: Cast locale object to Record<string, string> and simplify key lookup to prevent type errors.
+        const arCategoryOptions = locales.ar.challenges.categoryOptions as Record<string, string>;
+        const categoryKey = Object.keys(arCategoryOptions).find(key => arCategoryOptions[key] === c.category);
+
         if (categoryKey) {
             const translatedCategory = t(`challenges.categoryOptions.${categoryKey}`);
             acc[translatedCategory] = (acc[translatedCategory] || 0) + 1;
+        } else {
+            acc[c.category] = (acc[c.category] || 0) + 1;
         }
         return acc;
     }, {} as Record<string, number>);

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo } from 'react';
 import { useLocalization } from '../hooks/useLocalization';
 import { Opportunity } from '../types';
@@ -7,6 +8,7 @@ import { departments } from '../data/mockData';
 import { getPriorityBadgeStyle } from '../utils/priority';
 import { locales } from '../i18n/locales';
 import PriorityBadge from './PriorityBadge';
+import { translateChallengeField, translateDepartment } from '../utils/localizationUtils';
 
 interface OpportunityDetailsModalProps {
     isOpen: boolean;
@@ -67,28 +69,28 @@ const OpportunityDetailsModal: React.FC<OpportunityDetailsModalProps> = ({ isOpe
                             <span className="text-xs font-mono bg-natural-200 dark:bg-natural-700 px-2 py-1 rounded">{opportunity.code}</span>
                             <PriorityBadge priorityCategory={opportunity.priority_category} />
                         </div>
-                        <h1 className="text-xl font-bold text-natural-800 dark:text-natural-100 break-words">{opportunity.title}</h1>
+                        <h1 className="text-xl font-bold text-natural-800 dark:text-natural-100 break-words">{opportunity.title[language]}</h1>
                     </div>
                     <DetailSection title={t('challenges.detailsModal.summary')}>
                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <DetailItem label={t('opportunities.modal.responsibleDepartment')} value={opportunity.department} />
+                            <DetailItem label={t('opportunities.modal.responsibleDepartment')} value={translateDepartment(opportunity.department, language)} />
                             <DetailItem label={t('opportunities.status')} value={t(`opportunities.statusOptions.${opportunity.status}`)} />
                             <DetailItem label={t('opportunities.modal.progress')} value={`${opportunity.progress}%`} />
                         </div>
                     </DetailSection>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <DetailSection title={t('opportunities.modal.currentSituation')}>
-                            <p className="whitespace-pre-wrap break-words">{opportunity.currentSituation}</p>
+                            <p className="whitespace-pre-wrap break-words">{opportunity.currentSituation[language]}</p>
                         </DetailSection>
                         <DetailSection title={t('opportunities.modal.proposedSolution')}>
-                            <p className="whitespace-pre-wrap break-words">{opportunity.proposedSolution}</p>
+                            <p className="whitespace-pre-wrap break-words">{opportunity.proposedSolution[language]}</p>
                         </DetailSection>
                     </div>
                     
                     <DetailSection title={t('challenges.detailsModal.summary')}>
                          <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-                            <DetailItem label={t('challenges.modal.impact')} value={t(`challenges.impactOptions.${opportunity.impact === 'منخفض' ? 'low' : opportunity.impact === 'متوسط' ? 'medium' : 'high'}`)} />
-                            <DetailItem label={t('challenges.modal.effort')} value={t(`challenges.effortOptions.${opportunity.effort === 'منخفض' ? 'low' : opportunity.effort === 'متوسط' ? 'medium' : 'high'}`)} />
+                            <DetailItem label={t('challenges.modal.impact')} value={translateChallengeField('impact', opportunity.impact, t)} />
+                            <DetailItem label={t('challenges.modal.effort')} value={translateChallengeField('effort', opportunity.effort, t)} />
                         </div>
                     </DetailSection>
 
@@ -105,7 +107,7 @@ const OpportunityDetailsModal: React.FC<OpportunityDetailsModalProps> = ({ isOpe
                     )}
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <DetailSection title={t('opportunities.modal.owner')}>
-                            <p>{opportunity.owner || '-'}</p>
+                            <p>{opportunity.owner?.[language] || '-'}</p>
                         </DetailSection>
                         <DetailSection title={t('challenges.detailsModal.dates')}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

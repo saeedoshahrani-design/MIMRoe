@@ -9,8 +9,8 @@ const PageTitle: React.FC = () => {
     const pageTitle = t(`nav.${activePage}`);
 
     return (
-        <div className="mb-6 text-left rtl:text-right">
-            <h1 className="text-2xl font-bold text-white bg-mim-dark-purple px-5 py-2 rounded-md inline-block shadow-md">
+        <div className="text-left rtl:text-right">
+            <h1 className="text-2xl font-bold text-white bg-dark-purple-700 px-5 py-2 rounded-md inline-block shadow-md">
                 {pageTitle}
             </h1>
         </div>

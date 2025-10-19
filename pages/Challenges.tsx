@@ -1,22 +1,22 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useLocalization } from '../hooks/useLocalization';
-import Card from '../components/Card';
-import EmptyState from '../components/EmptyState';
-import { SearchIcon, ChallengesIcon, PlusIcon } from '../components/icons/IconComponents';
-import { Challenge, Opportunity, Initiative, OpportunityStatus } from '../types';
-import { departments } from '../data/mockData';
-import PageTitle from '../components/PageTitle';
-import AddChallengeModal from '../components/AddChallengeModal';
-import ConfirmationModal from '../components/ConfirmationModal';
-import ChallengeDetailsModal from '../components/ChallengeDetailsModal';
-import Toast from '../components/Toast';
-import { locales } from '../i18n/locales';
-import { useChallenges } from '../context/ChallengesContext';
-import { useOpportunities } from '../context/OpportunitiesContext';
-import OpportunityCard from '../components/OpportunityCard';
-import AddOpportunityModal from '../components/AddOpportunityModal';
-import OpportunityDetailsModal from '../components/OpportunityDetailsModal';
-import ChallengeCard from '../components/challenges/ChallengeCard';
+import { useLocalization } from '../hooks/useLocalization.ts';
+import Card from '../components/Card.tsx';
+import EmptyState from '../components/EmptyState.tsx';
+import { SearchIcon, ChallengesIcon, PlusIcon } from '../components/icons/IconComponents.tsx';
+import { Challenge, Opportunity, Initiative, OpportunityStatus } from '../types.ts';
+import { departments } from '../data/mockData.ts';
+import PageTitle from '../components/PageTitle.tsx';
+import AddChallengeModal from '../components/AddChallengeModal.tsx';
+import ConfirmationModal from '../components/ConfirmationModal.tsx';
+import ChallengeDetailsModal from '../components/ChallengeDetailsModal.tsx';
+import Toast from '../components/Toast.tsx';
+import { locales } from '../i18n/locales.ts';
+import { useChallenges } from '../context/ChallengesContext.tsx';
+import { useOpportunities } from '../context/OpportunitiesContext.tsx';
+import OpportunityCard from '../components/OpportunityCard.tsx';
+import AddOpportunityModal from '../components/AddOpportunityModal.tsx';
+import OpportunityDetailsModal from '../components/OpportunityDetailsModal.tsx';
+import ChallengeCard from '../components/challenges/ChallengeCard.tsx';
 
 
 const Challenges: React.FC = () => {
@@ -88,13 +88,36 @@ const Challenges: React.FC = () => {
             }
 
             const searchLower = searchTerm.toLowerCase();
-            const title = item.type === 'challenge' ? (language === 'ar' ? item.title_ar : item.title_en) : item.title;
-            const description = item.type === 'challenge' ? item.description : item.proposedSolution;
             
-            const matchesSearch = 
-                title.toLowerCase().includes(searchLower) ||
-                description.toLowerCase().includes(searchLower) ||
-                item.code.toLowerCase().includes(searchLower);
+            let matchesSearch = false;
+            if (searchTerm.trim()) {
+                if (item.type === 'challenge') {
+                    matchesSearch =
+                        (item.title || '').toLowerCase().includes(searchLower) ||
+                        (item.description || '').toLowerCase().includes(searchLower) ||
+                        (item.code || '').toLowerCase().includes(searchLower);
+                } else { // Opportunity
+                    // Ensure item.title exists and is an object before accessing properties
+                    const titleEn = (item.title && typeof item.title === 'object' && 'en' in item.title) ? item.title.en : '';
+                    const titleAr = (item.title && typeof item.title === 'object' && 'ar' in item.title) ? item.title.ar : '';
+                    const currentSituationEn = (item.currentSituation && typeof item.currentSituation === 'object' && 'en' in item.currentSituation) ? item.currentSituation.en : '';
+                    const currentSituationAr = (item.currentSituation && typeof item.currentSituation === 'object' && 'ar' in item.currentSituation) ? item.currentSituation.ar : '';
+                    const proposedSolutionEn = (item.proposedSolution && typeof item.proposedSolution === 'object' && 'en' in item.proposedSolution) ? item.proposedSolution.en : '';
+                    const proposedSolutionAr = (item.proposedSolution && typeof item.proposedSolution === 'object' && 'ar' in item.proposedSolution) ? item.proposedSolution.ar : '';
+
+                    matchesSearch =
+                        (titleEn || '').toLowerCase().includes(searchLower) ||
+                        (titleAr || '').toLowerCase().includes(searchLower) ||
+                        (currentSituationEn || '').toLowerCase().includes(searchLower) ||
+                        (currentSituationAr || '').toLowerCase().includes(searchLower) ||
+                        (proposedSolutionEn || '').toLowerCase().includes(searchLower) ||
+                        (proposedSolutionAr || '').toLowerCase().includes(searchLower) ||
+                        (item.code || '').toLowerCase().includes(searchLower);
+                }
+            } else {
+                matchesSearch = true;
+            }
+
 
             let matchesStatus = true;
             if (selectedStatus !== 'all') {
@@ -123,11 +146,12 @@ const Challenges: React.FC = () => {
 
     // Challenge Handlers
     const handleSaveChallenge = useCallback((challengeData: Omit<Challenge, 'id' | 'code' | 'created_at' | 'updated_at' | 'is_archived' | 'type'> & { id?: string }) => {
-        if (challengeData.id) {
-            updateChallenge(challengeData.id, challengeData);
+        const { id, ...saveData } = challengeData;
+        if (id) {
+            updateChallenge(id, saveData);
             setToast({ message: t('challenges.notifications.updateSuccess'), type: 'success' });
         } else {
-            addChallenge(challengeData);
+            addChallenge(saveData);
             setToast({ message: t('challenges.notifications.addSuccess'), type: 'success' });
         }
         setIsAddChallengeModalOpen(false);
@@ -141,11 +165,12 @@ const Challenges: React.FC = () => {
 
     // Opportunity Handlers
     const handleSaveOpportunity = useCallback((opportunityData: Omit<Opportunity, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'type'> & { id?: string }) => {
-        if (opportunityData.id) {
-            updateOpportunity(opportunityData.id, opportunityData);
+        const { id, ...saveData } = opportunityData;
+        if (id) {
+            updateOpportunity(id, saveData);
             setToast({ message: t('opportunities.notifications.updateSuccess'), type: 'success' });
         } else {
-            addOpportunity(opportunityData);
+            addOpportunity(saveData);
             setToast({ message: t('opportunities.notifications.addSuccess'), type: 'success' });
         }
         setIsAddOpportunityModalOpen(false);
@@ -261,7 +286,7 @@ const Challenges: React.FC = () => {
 
             <div>
                 {filteredInitiatives.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                        {filteredInitiatives.map(item => {
                            if (item.type === 'challenge') {
                                return <ChallengeCard 

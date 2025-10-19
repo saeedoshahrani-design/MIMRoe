@@ -4,6 +4,7 @@ import Card from '../Card';
 import TaskItem from './TaskItem';
 import { useLeadTasks } from '../../context/LeadTasksContext';
 import { PlusIcon } from '../icons/IconComponents';
+import { useAppContext } from '../../context/AppContext';
 
 interface TaskCategoryCardProps {
     title: string;
@@ -13,12 +14,13 @@ interface TaskCategoryCardProps {
 
 const TaskCategoryCard: React.FC<TaskCategoryCardProps> = ({ title, category, tasks }) => {
     const { addTask } = useLeadTasks();
+    const { language } = useAppContext();
     const [newTaskText, setNewTaskText] = useState('');
 
     const handleAddTask = (e: React.FormEvent) => {
         e.preventDefault();
         if (newTaskText.trim()) {
-            addTask(category, newTaskText.trim());
+            addTask(category, newTaskText.trim(), language);
             setNewTaskText('');
         }
     };

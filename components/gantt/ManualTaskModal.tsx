@@ -91,7 +91,8 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onSa
         ? (viewMode === 'view' ? t('timeline.detailsModalTitle') : t('timeline.editModalTitle'))
         : t('timeline.addModalTitle');
 
-    const statusOptions = Object.values(locales[language].challenges.statusOptions);
+    // FIX: Cast the result of Object.values to string[] to prevent 'unknown' type errors.
+    const statusOptions = Object.values(locales[language].challenges.statusOptions) as string[];
     const departmentOptions = departments.map(d => ({ value: d.name.ar, label: d.name[language] }));
 
     const DetailItem: React.FC<{ label: string; value?: string | number | null }> = ({ label, value }) => (
@@ -115,12 +116,15 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onSa
                     <div className="p-6 overflow-y-auto space-y-4">
                         <h3 className="text-xl font-bold">{taskToManage.title}</h3>
                         {taskToManage.description && <p className="whitespace-pre-wrap">{taskToManage.description}</p>}
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t border-natural-200 dark:border-natural-700">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-natural-200 dark:border-natural-700">
                             <DetailItem label={t('challenges.status')} value={taskToManage.status} />
                             <DetailItem label={t('challenges.modal.department')} value={taskToManage.department} />
-                             <DetailItem label={t('challenges.actualProgress')} value={`${taskToManage.actual_percent}%`} />
-                            <DetailItem label={t('challenges.startDate')} value={formatDate(taskToManage.start)} />
-                            <DetailItem label={t('challenges.targetDate')} value={formatDate(taskToManage.end)} />
+                            <DetailItem label={t('challenges.actualProgress')} value={`${taskToManage.actual_percent}%`} />
+                            <DetailItem label={t('challenges.plannedProgress')} value={`${Math.round(taskToManage.planned_percent_today || 0)}%`} />
+                            {/* FIX: Convert Date object to string before passing to formatDate. */}
+                            <DetailItem label={t('challenges.startDate')} value={formatDate(taskToManage.start instanceof Date ? taskToManage.start.toISOString() : taskToManage.start)} />
+                            {/* FIX: Convert Date object to string before passing to formatDate. */}
+                            <DetailItem label={t('challenges.targetDate')} value={formatDate(taskToManage.end instanceof Date ? taskToManage.end.toISOString() : taskToManage.end)} />
                         </div>
                     </div>
                 ) : (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocalization } from '../hooks/useLocalization';
-import { Opportunity, OpportunityStatus } from '../types';
+import { Opportunity, OpportunityStatus, LocalizedString } from '../types';
 import { departments } from '../data/mockData';
 import { CloseIcon } from './icons/IconComponents';
 import { useOpportunities } from '../context/OpportunitiesContext';
@@ -8,6 +8,7 @@ import { generateNextOpportunityCode } from '../utils/opportunityUtils';
 import { computePriorityDetails, PriorityValue } from '../utils/priority';
 import LinkedTargetsSelector from './departments/LinkedTargetsSelector';
 import { locales } from '../i18n/locales';
+import { autoTranslate } from '../utils/localizationUtils';
 
 interface AddOpportunityModalProps {
     isOpen: boolean;
@@ -63,7 +64,7 @@ const AddOpportunityModal: React.FC<AddOpportunityModalProps> = ({ isOpen, onClo
         if (isOpen) {
             if (isEditMode && opportunityToEdit) {
                 setFormState({
-                    title: opportunityToEdit.title,
+                    title: opportunityToEdit.title?.[language] || '',
                     department: opportunityToEdit.department,
                     status: opportunityToEdit.status,
                     impact: opportunityToEdit.impact,
@@ -71,10 +72,10 @@ const AddOpportunityModal: React.FC<AddOpportunityModalProps> = ({ isOpen, onClo
                     priority: opportunityToEdit.priority,
                     priority_category: opportunityToEdit.priority_category,
                     priority_score: opportunityToEdit.priority_score,
-                    currentSituation: opportunityToEdit.currentSituation,
-                    proposedSolution: opportunityToEdit.proposedSolution,
+                    currentSituation: opportunityToEdit.currentSituation?.[language] || '',
+                    proposedSolution: opportunityToEdit.proposedSolution?.[language] || '',
                     progress: opportunityToEdit.progress,
-                    owner: opportunityToEdit.owner || '',
+                    owner: opportunityToEdit.owner?.[language] || '',
                     startDate: opportunityToEdit.startDate || '',
                     dueDate: opportunityToEdit.dueDate || '',
                     notes: opportunityToEdit.notes || '',
@@ -85,7 +86,7 @@ const AddOpportunityModal: React.FC<AddOpportunityModalProps> = ({ isOpen, onClo
             }
             setErrors({});
         }
-    }, [isOpen, opportunityToEdit, isEditMode]);
+    }, [isOpen, opportunityToEdit, isEditMode, language]);
 
     const validate = (): boolean => {
         const newErrors: Errors = {};
@@ -98,7 +99,29 @@ const AddOpportunityModal: React.FC<AddOpportunityModalProps> = ({ isOpen, onClo
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (validate()) {
-            onSave({ ...formState, id: opportunityToEdit?.id });
+            const otherLang = language === 'ar' ? 'en' : 'ar';
+            const createLocalizedString = (currentText: string, existing?: LocalizedString): LocalizedString => {
+                const newLocalizedString: LocalizedString = {
+                    ar: existing?.ar || '',
+                    en: existing?.en || '',
+                };
+                newLocalizedString[language] = currentText;
+                
+                if (!newLocalizedString[otherLang] || autoTranslate(existing?.[language] || '', otherLang) === newLocalizedString[otherLang]) {
+                    newLocalizedString[otherLang] = autoTranslate(currentText, otherLang);
+                }
+                return newLocalizedString;
+            };
+
+            const opportunityData = {
+                ...formState,
+                title: createLocalizedString(formState.title, opportunityToEdit?.title),
+                currentSituation: createLocalizedString(formState.currentSituation, opportunityToEdit?.currentSituation),
+                proposedSolution: createLocalizedString(formState.proposedSolution, opportunityToEdit?.proposedSolution),
+                owner: createLocalizedString(formState.owner, opportunityToEdit?.owner),
+            };
+
+            onSave({ ...opportunityData, id: opportunityToEdit?.id });
         }
     };
 
@@ -125,8 +148,10 @@ const AddOpportunityModal: React.FC<AddOpportunityModalProps> = ({ isOpen, onClo
     const code = isEditMode ? opportunityToEdit.code : generateNextOpportunityCode(opportunities);
     const selectedDepartmentId = departments.find(d => d.name.ar === formState.department)?.id || null;
     
-    const impactOptions = Object.entries(locales[language].challenges.impactOptions).map(([key, value]) => ({ key: Object.values(locales.ar.challenges.impactOptions)[Object.keys(locales.en.challenges.impactOptions).indexOf(key)], value }));
-    const effortOptions = Object.entries(locales[language].challenges.effortOptions).map(([key, value]) => ({ key: Object.values(locales.ar.challenges.effortOptions)[Object.keys(locales.en.challenges.effortOptions).indexOf(key)], value }));
+    // FIX: Cast `value` to string to prevent 'unknown' type errors.
+    const impactOptions = Object.entries(locales[language].challenges.impactOptions).map(([key, value]) => ({ key: (Object.values(locales.ar.challenges.impactOptions) as string[])[Object.keys(locales.en.challenges.impactOptions).indexOf(key)], value: value as string }));
+    // FIX: Cast `value` to string to prevent 'unknown' type errors.
+    const effortOptions = Object.entries(locales[language].challenges.effortOptions).map(([key, value]) => ({ key: (Object.values(locales.ar.challenges.effortOptions) as string[])[Object.keys(locales.en.challenges.effortOptions).indexOf(key)], value: value as string }));
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4" onClick={onClose} role="dialog" aria-modal="true">
@@ -159,7 +184,8 @@ const AddOpportunityModal: React.FC<AddOpportunityModalProps> = ({ isOpen, onClo
                          <div>
                             <label htmlFor="status" className="block text-sm font-medium">{t('opportunities.status')}</label>
                             <select name="status" id="status" value={formState.status} onChange={handleChange} className="mt-1 w-full bg-natural-50 dark:bg-natural-700 border-natural-300 dark:border-natural-600 rounded-md">
-                                {Object.keys(t('opportunities.statusOptions', {})).map(key => <option key={key} value={key}>{t(`opportunities.statusOptions.${key}`)}</option>)}
+                                {/* FIX: Cast the result of t() to a record to prevent 'unknown' type errors. */}
+                                {Object.keys(t('opportunities.statusOptions', {}) as Record<string, string>).map(key => <option key={key} value={key}>{t(`opportunities.statusOptions.${key}`)}</option>)}
                             </select>
                         </div>
                     </div>
@@ -197,7 +223,8 @@ const AddOpportunityModal: React.FC<AddOpportunityModalProps> = ({ isOpen, onClo
                                     className="flex items-center justify-between w-full px-3 py-2 bg-natural-100 dark:bg-natural-900 border border-natural-300 dark:border-natural-600 rounded-md cursor-not-allowed text-sm font-semibold text-natural-700 dark:text-natural-300"
                                 >
                                     <span>
-                                        {t(`challenges.priorityCategories.${formState.priority_category as keyof typeof locales.en.challenges.priorityCategories}`)}
+                                        {/* FIX: Explicitly cast to string to prevent implicit symbol conversion error. */}
+                                        {t(`challenges.priorityCategories.${String(formState.priority_category)}`)}
                                     </span>
                                     <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-natural-200 dark:bg-natural-700 text-natural-600 dark:text-natural-400">
                                         {t('challenges.modal.auto')}

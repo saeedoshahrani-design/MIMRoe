@@ -1,8 +1,10 @@
+
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line, Label, LabelList } from 'recharts';
 import { useLocalization } from '../../hooks/useLocalization';
 import { useChartTheme, STATUS_COLORS, PERFORMANCE_COLORS, CATEGORY_COLORS, TREND_COLORS, STATUS_DONUT_COLORS, CATEGORY_DONUT_COLORS } from '../../utils/chartUtils';
 import { locales } from '../../i18n/locales';
+import { translateDepartment } from '../../utils/localizationUtils';
 
 interface ChartProps {
     data: any[];
@@ -33,7 +35,8 @@ const ChartWrapper: React.FC<{ children: React.ReactNode, data: any[], isLoading
     return <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>;
 };
 
-const CategoricalTooltip: React.FC<any> = ({ active, payload, label, formatNumber, isRtl, legendFormatter }) => {
+// FIX: Export CategoricalTooltip to resolve import error in Dashboard.tsx.
+export const CategoricalTooltip: React.FC<any> = ({ active, payload, label, formatNumber, isRtl, legendFormatter }) => {
     const themeStyles = useChartTheme();
     if (active && payload && payload.length) {
         const isPieChart = !!payload[0].percent;
@@ -44,7 +47,8 @@ const CategoricalTooltip: React.FC<any> = ({ active, payload, label, formatNumbe
                 <p className="font-bold mb-1 text-sm">{isPieChart ? payload[0].name : label}</p>
                 {payload.map((entry: any, index: number) => {
                      const value = entry.value;
-                     const percentage = total > 0 ? ((value / total) * 100).toFixed(0) : 0;
+                     // FIX: Use Math.round to get a number for formatNumber, instead of toFixed which returns a string.
+                     const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
                      const displayName = legendFormatter ? legendFormatter(entry.name) : entry.name;
                     return (
                         <div key={`item-${index}`} className="flex items-center text-xs" dir={isRtl ? 'rtl' : 'ltr'}>
@@ -60,7 +64,8 @@ const CategoricalTooltip: React.FC<any> = ({ active, payload, label, formatNumbe
     return null;
 };
 
-const CustomizedXAxisTick = (props: any) => {
+// FIX: Export CustomizedXAxisTick to resolve import error in Dashboard.tsx.
+export const CustomizedXAxisTick = (props: any) => {
     const { x, y, payload, fill } = props;
     const value = payload.value;
     const lineLength = 16;
@@ -108,8 +113,10 @@ export const DepartmentsComparisonChart: React.FC<ChartProps> = ({ data, onSegme
     const [activeLegend, setActiveLegend] = useState<string[]>(allStatuses);
 
     const processedData = useMemo(() => 
-        [...data].sort((a, b) => b.total - a.total), 
-        [data]
+        [...data]
+            .map(d => ({ ...d, name: translateDepartment(d.name, language) }))
+            .sort((a, b) => b.total - a.total), 
+        [data, language]
     );
 
     const legendFormatter = (value: string) => {
@@ -245,7 +252,8 @@ export const SummaryDonutChart: React.FC<{
     };
     
     const activeData = activeIndex !== null ? data[activeIndex] : null;
-    const activePercentage = activeData && total > 0 ? ((activeData.value / total) * 100).toFixed(0) : null;
+    // FIX: Use Math.round to get a number for formatNumber, instead of toFixed which returns a string.
+    const activePercentage = activeData && total > 0 ? Math.round((activeData.value / total) * 100) : null;
 
     return (
         <div className="w-full h-full flex flex-col">
@@ -277,7 +285,7 @@ export const SummaryDonutChart: React.FC<{
                                     return (
                                         <g>
                                             <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" style={{ fontSize: '24px', fontWeight: 'bold', fill: themeStyles.tick.fill }}>
-                                                {activeIndex !== null && activePercentage ? `${formatNumber(activePercentage)}%` : formatNumber(total)}
+                                                {activeIndex !== null && activePercentage !== null ? `${formatNumber(activePercentage)}%` : formatNumber(total)}
                                             </text>
                                             {activeIndex !== null && activeData && (
                                                 <text x={cx} y={cy + 20} textAnchor="middle" dominantBaseline="central" style={{ fontSize: '12px', fill: themeStyles.tick.fill }}>

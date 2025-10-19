@@ -1,68 +1,69 @@
 
-import React from 'react';
-import { useAppContext } from '../context/AppContext';
-import { useLocalization } from '../hooks/useLocalization';
-import { SunIcon, MoonIcon, LanguageIcon, MenuIcon, CloseIcon } from './icons/IconComponents';
+
+import React, { useState, useEffect } from 'react';
+import { useAppContext } from '../context/AppContext.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
+import { useLocalization } from '../hooks/useLocalization.ts';
+import { SparklesIcon, Bars3Icon, SunIcon, MoonIcon, UserCircleIcon, ArrowRightOnRectangleIcon, Cog6ToothIcon, CloseIcon } from './icons/IconComponents.tsx';
 
 const Header: React.FC = () => {
     const { theme, setTheme, language, setLanguage, isSidebarOpen, setIsSidebarOpen } = useAppContext();
+    const { user, logout } = useAuth();
     const { t } = useLocalization();
 
-    const toggleTheme = () => {
-        setTheme(theme === 'light' ? 'dark' : 'light');
-    };
-
-    const toggleLanguage = () => {
-        setLanguage(language === 'en' ? 'ar' : 'en');
-    };
-
-    const logoSources = {
-        ar: {
-            light: 'https://www.mim.gov.sa/_next/image?url=https%3A%2F%2Fmim-cms-directus.mim.gov.sa%2Fassets%2F%2F2f536dde-4d35-455a-8544-b6391ce1e6ce.avif&w=1080&q=90',
-            dark: 'https://www.mim.gov.sa/_next/image?url=https%3A%2F%2Fmim-cms-directus.mim.gov.sa%2Fassets%2F%2F747ac770-34f5-4acb-9041-2b6333276a70.avif&w=1080&q=90',
-        },
-        en: {
-            light: 'https://www.mim.gov.sa/_next/image?url=https%3A%2F%2Fmim-cms-directus.mim.gov.sa%2Fassets%2F%2F51850a2b-a6b6-4d37-8f5b-24c7b11589d8.avif&w=1080&q=90',
-            dark: 'https://www.mim.gov.sa/_next/image?url=https%3A%2F%2Fmim-cms-directus.mim.gov.sa%2Fassets%2F%2F2833f165-b07a-4401-99f5-de8b6b16bdc0.avif&w=1080&q=90',
-        },
-    };
-
-    const logoSrc = logoSources[language][theme];
-    const logoAlt = language === 'ar' ? 'شعار وزارة الصناعة والثروة المعدنية' : 'Ministry of Industry and Mineral Resources logo';
-
-
     return (
-        <header className="sticky top-0 z-30 w-full bg-white dark:bg-natural-800 border-b border-natural-200 dark:border-natural-700 px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-                 <div className="flex items-center space-x-4 rtl:space-x-reverse">
+        <>
+            <header className="sticky top-0 z-30 h-16 bg-white dark:bg-natural-800 border-b border-natural-200 dark:border-natural-700 flex items-center justify-between px-4 sm:px-6">
+                <div className="flex items-center gap-4">
                     <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="p-2 rounded-md text-natural-500 hover:bg-natural-100 dark:hover:bg-natural-700"
-                        aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+                        className="p-2 rounded-full hover:bg-natural-100 dark:hover:bg-natural-700"
+                        aria-label="Toggle sidebar"
                     >
-                        {isSidebarOpen ? <CloseIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
+                        <Bars3Icon className="h-6 w-6" />
                     </button>
-                    <img src={logoSrc} alt={logoAlt} className="h-8 md:h-10 lg:h-12 w-auto" />
-                 </div>
+                    <div className="flex items-center gap-2">
+                        <SparklesIcon className="h-8 w-8 text-dark-purple-500" />
+                        <span className="hidden sm:block font-bold text-lg text-natural-800 dark:text-natural-100">
+                            {t('login.title')}
+                        </span>
+                    </div>
+                </div>
 
-                <div className="flex items-center space-x-4 rtl:space-x-reverse">
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={toggleLanguage}
-                        className="p-2 rounded-full text-natural-500 hover:bg-natural-100 dark:hover:bg-natural-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-dark-purple-500"
-                        aria-label={language === 'en' ? 'Switch to Arabic' : 'Switch to English'}
-                    >
-                        <LanguageIcon className="h-6 w-6" />
-                    </button>
-                    <button
-                        onClick={toggleTheme}
-                        className="p-2 rounded-full text-natural-500 hover:bg-natural-100 dark:hover:bg-natural-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-dark-purple-500"
-                        aria-label={theme === 'light' ? t('darkMode') : t('lightMode')}
+                        onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                        className="p-2 rounded-full hover:bg-natural-100 dark:hover:bg-natural-700"
+                        aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
                     >
                         {theme === 'light' ? <MoonIcon className="h-6 w-6" /> : <SunIcon className="h-6 w-6" />}
                     </button>
+
+                    <button
+                        onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+                        className="p-2 rounded-full hover:bg-natural-100 dark:hover:bg-natural-700 font-bold text-sm"
+                        aria-label={`Switch to ${language === 'en' ? 'Arabic' : 'English'}`}
+                    >
+                        {language === 'en' ? 'AR' : 'EN'}
+                    </button>
+
+                    {user && (
+                        <div className="relative group">
+                            <button className="flex items-center gap-2">
+                            <UserCircleIcon className="h-8 w-8 text-natural-500" />
+                            <span className="hidden md:block text-sm font-medium">{user.email}</span>
+                            </button>
+                            <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-natural-700 rounded-md shadow-lg border dark:border-natural-600 opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200">
+                            <button onClick={logout} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-natural-100 dark:hover:bg-natural-600">
+                                <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                                <span>Logout</span>
+                            </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            </div>
-        </header>
+            </header>
+        </>
     );
 };
 

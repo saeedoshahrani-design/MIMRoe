@@ -1,12 +1,5 @@
 import { Procedure } from '../types';
 
-export const autoTranslate = (text: string, toLang: 'ar' | 'en'): string => {
-    if (!text) return '';
-    // Simple placeholder for development
-    return `(${toLang.toUpperCase()}) ${text}`;
-};
-
-
 export const generateNextProcedureCode = (existingProcedures: Procedure[]): string => {
     if (!existingProcedures || existingProcedures.length === 0) {
         return 'PROC-001';

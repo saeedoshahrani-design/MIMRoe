@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { LeadTask, LeadTaskCategory } from '../../types';
 import { useLeadTasks } from '../../context/LeadTasksContext';
 import { TrashIcon } from '../icons/IconComponents';
+import { useAppContext } from '../../context/AppContext';
 
 interface TaskItemProps {
     task: LeadTask;
@@ -10,8 +11,9 @@ interface TaskItemProps {
 
 const TaskItem: React.FC<TaskItemProps> = ({ task, category }) => {
     const { updateTask, deleteTask } = useLeadTasks();
+    const { language } = useAppContext();
     const [isEditing, setIsEditing] = useState(false);
-    const [editText, setEditText] = useState(task.text);
+    const [editText, setEditText] = useState(task.text[language]);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -21,9 +23,15 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, category }) => {
         }
     }, [isEditing]);
 
+    useEffect(() => {
+        if (!isEditing) {
+            setEditText(task.text[language]);
+        }
+    }, [language, task.text, isEditing]);
+
     const handleSave = () => {
-        if (editText.trim() && editText.trim() !== task.text) {
-            updateTask(category, task.id, editText.trim());
+        if (editText.trim() && editText.trim() !== task.text[language]) {
+            updateTask(category, task.id, editText.trim(), language);
         }
         setIsEditing(false);
     };
@@ -32,7 +40,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, category }) => {
         if (e.key === 'Enter') {
             handleSave();
         } else if (e.key === 'Escape') {
-            setEditText(task.text);
+            setEditText(task.text[language]);
             setIsEditing(false);
         }
     };
@@ -53,7 +61,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, category }) => {
                     />
                 ) : (
                     <span onClick={() => setIsEditing(true)} className="flex-grow cursor-pointer break-words">
-                        {task.text}
+                        {task.text[language]}
                     </span>
                 )}
             </div>

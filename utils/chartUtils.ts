@@ -96,6 +96,15 @@ export const OPPORTUNITY_STATUS_COLORS: Record<OpportunityStatus, string> = {
     'On Hold': '#64748b', // slate-500
 };
 
+export const INITIATIVE_STATUS_DONUT_COLORS: Record<string, string> = {
+    'Not Started': '#94a3b8', // slate-400
+    'لم تبدأ': '#94a3b8',
+    'In Progress': '#3b82f6', // blue-500
+    'قيد التنفيذ': '#3b82f6',
+    'Completed': '#22c55e', // green-500
+    'مكتملة': '#22c55e',
+};
+
 
 // Hook to get theme-dependent styles
 export const useChartTheme = () => {

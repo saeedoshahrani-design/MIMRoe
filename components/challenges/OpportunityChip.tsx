@@ -16,7 +16,7 @@ const statusColorMap: Record<Opportunity['status'], string> = {
 };
 
 const OpportunityChip: React.FC<OpportunityChipProps> = ({ opportunity, onClick }) => {
-    const { t } = useLocalization();
+    const { t, language } = useLocalization();
     const statusDotColor = statusColorMap[opportunity.status] || 'bg-natural-400';
 
     const effortLevel = t(`dashboard.matrix.levels.${opportunity.effort === 'منخفض' ? 'low' : opportunity.effort === 'متوسط' ? 'medium' : 'high'}`);
@@ -39,7 +39,7 @@ const OpportunityChip: React.FC<OpportunityChipProps> = ({ opportunity, onClick 
                 className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-3 bg-natural-800 text-white text-xs text-left rtl:text-right rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20"
                 role="tooltip"
             >
-                <p className="font-bold text-sm mb-1 break-words">{opportunity.title}</p>
+                <p className="font-bold text-sm mb-1 break-words">{opportunity.title[language]}</p>
                 <p>{opportunity.department}</p>
                 <p>{t('challenges.status')}: <span className="font-semibold">{t(`opportunities.statusOptions.${opportunity.status}`)}</span></p>
                 <div className="mt-1 pt-1 border-t border-natural-600">

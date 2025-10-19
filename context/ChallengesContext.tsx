@@ -1,65 +1,108 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Challenge } from '../types';
-import { loadBox, saveBox } from '../utils/storage';
-import { generateNextChallengeCode } from '../utils/challengeUtils';
-import { seedChallenges } from '../data/mockData';
+import { Challenge } from '../types.ts';
+import { db } from '../firebase.ts';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, writeBatch } from 'firebase/firestore';
+import { generateNextChallengeCode } from '../utils/challengeUtils.ts';
+import { useAuth } from './AuthContext.tsx';
 
 type ChallengeFormData = Omit<Challenge, 'id' | 'code' | 'created_at' | 'updated_at' | 'is_archived' | 'type'>;
 
 interface ChallengesContextType {
     challenges: Challenge[];
-    addChallenge: (challengeData: ChallengeFormData) => void;
-    updateChallenge: (id: string, challengeData: Partial<ChallengeFormData>) => void;
-    deleteChallenge: (id: string) => void;
-    updateChallengeDirectly: (challenge: Challenge) => void;
+    addChallenge: (challengeData: ChallengeFormData) => Promise<void>;
+    updateChallenge: (id: string, challengeData: Partial<ChallengeFormData>) => Promise<void>;
+    deleteChallenge: (id: string) => Promise<void>;
+    updateChallengeDirectly: (challenge: Challenge) => Promise<void>;
 }
 
 const ChallengesContext = createContext<ChallengesContextType | undefined>(undefined);
 
-const LS_KEY = 'challenges';
+const COLLECTION_NAME = 'challenges';
+
+const toUtcDateString = (dateStr: string | undefined | null) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return dateStr; // Return as is if not YYYY-MM-DD or is already a full ISO string
+    }
+    return new Date(`${dateStr}T00:00:00.000Z`).toISOString();
+};
 
 export const ChallengesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [challenges, setChallenges] = useState<Challenge[]>(() => loadBox<Challenge[]>(LS_KEY, seedChallenges));
+    const { user } = useAuth();
+    const [challenges, setChallenges] = useState<Challenge[]>([]);
 
     useEffect(() => {
-        saveBox(LS_KEY, challenges);
-    }, [challenges]);
+        if (!user) {
+            setChallenges([]);
+            return;
+        }
 
-    const addChallenge = useCallback((challengeData: ChallengeFormData) => {
+        const collRef = collection(db, 'workspaces', 'shared', COLLECTION_NAME);
+        const q = query(collRef);
+
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const challengesFromDb = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as Challenge));
+            challengesFromDb.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            setChallenges(challengesFromDb);
+        }, (error) => {
+            console.error("Error listening to challenges collection:", error);
+        });
+
+        return () => unsubscribe();
+    }, [user]);
+
+    const addChallenge = useCallback(async (challengeData: ChallengeFormData) => {
+        if (!user) throw new Error("User not authenticated");
         const now = new Date().toISOString();
-        const newChallenge: Challenge = {
+        const newCode = generateNextChallengeCode(challenges);
+        
+        const newChallenge: Omit<Challenge, 'id'> = {
             ...challengeData,
+            start_date: toUtcDateString(challengeData.start_date) as string,
+            target_date: toUtcDateString(challengeData.target_date) as string,
             type: 'challenge',
-            id: `C${Date.now()}`,
-            code: generateNextChallengeCode(challenges),
+            code: newCode,
             created_at: now,
             updated_at: now,
             is_archived: false,
             linkedTargetIds: challengeData.linkedTargetIds || [],
         };
-        setChallenges(prev => [newChallenge, ...prev]);
-    }, [challenges]);
+        await addDoc(collection(db, 'workspaces', 'shared', COLLECTION_NAME), newChallenge);
+    }, [challenges, user]);
 
-    const updateChallenge = useCallback((id: string, challengeData: Partial<ChallengeFormData>) => {
+    const updateChallenge = useCallback(async (id: string, challengeData: Partial<ChallengeFormData>) => {
+        if (!user) throw new Error("User not authenticated");
         const now = new Date().toISOString();
-        setChallenges(prev => prev.map(c =>
-            c.id === id
-                ? { ...c, ...challengeData, updated_at: now } as Challenge
-                : c
-        ));
-    }, []);
-    
-    const updateChallengeDirectly = useCallback((updatedChallenge: Challenge) => {
-        setChallenges(prev => prev.map(c => 
-            c.id === updatedChallenge.id 
-                ? updatedChallenge
-                : c
-        ));
-    }, []);
+        const challengeDoc = doc(db, 'workspaces', 'shared', COLLECTION_NAME, id);
+        
+        const updateData = { ...challengeData };
+        if (updateData.start_date) {
+            updateData.start_date = toUtcDateString(updateData.start_date) as string;
+        }
+        if (updateData.target_date) {
+            updateData.target_date = toUtcDateString(updateData.target_date) as string;
+        }
 
-    const deleteChallenge = useCallback((id: string) => {
-        setChallenges(prev => prev.filter(c => c.id !== id));
-    }, []);
+        await updateDoc(challengeDoc, {
+            ...updateData,
+            updated_at: now,
+        });
+    }, [user]);
+    
+    const updateChallengeDirectly = useCallback(async (updatedChallenge: Challenge) => {
+        if (!user) throw new Error("User not authenticated");
+        const { id, ...data } = updatedChallenge;
+        const challengeDoc = doc(db, 'workspaces', 'shared', COLLECTION_NAME, id);
+        await updateDoc(challengeDoc, data);
+    }, [user]);
+
+    const deleteChallenge = useCallback(async (id: string) => {
+        if (!user) throw new Error("User not authenticated");
+        const challengeDoc = doc(db, 'workspaces', 'shared', COLLECTION_NAME, id);
+        await deleteDoc(challengeDoc);
+    }, [user]);
 
     const value = { challenges, addChallenge, updateChallenge, deleteChallenge, updateChallengeDirectly };
 

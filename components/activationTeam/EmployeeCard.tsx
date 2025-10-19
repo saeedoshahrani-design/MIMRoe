@@ -38,7 +38,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ employee, onViewDetails, on
                 {employee.avatar ? (
                     <img 
                         src={employee.avatar} 
-                        alt={employee.name[language]} 
+                        alt={employee.name?.[language]} 
                         className="w-28 h-28 rounded-full object-cover border-4 border-natural-200 dark:border-natural-700"
                     />
                 ) : (
@@ -48,8 +48,8 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ employee, onViewDetails, on
                 )}
             </div>
 
-            <h3 className="font-bold text-lg text-natural-800 dark:text-natural-100">{employee.name[language]}</h3>
-            <p className="text-sm text-natural-500 dark:text-natural-400 mb-4">{employee.title[language]}</p>
+            <h3 className="font-bold text-lg text-natural-800 dark:text-natural-100">{employee.name?.[language] || ''}</h3>
+            <p className="text-sm text-natural-500 dark:text-natural-400 mb-4">{employee.title?.[language] || ''}</p>
 
             <button 
                 onClick={() => onViewDetails(employee)}

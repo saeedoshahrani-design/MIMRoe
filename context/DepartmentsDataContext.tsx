@@ -1,40 +1,66 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { DepartmentData, DepartmentTask, DepartmentTarget } from '../types';
-import { loadBox, saveBox } from '../utils/storage';
+import { db } from '../firebase';
+import { collection, doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { useLocalization } from '../hooks/useLocalization';
+import { useAuth } from './AuthContext';
 
-const LS_KEY = 'departments-data';
+const COLLECTION_NAME = 'departmentData';
 
 type DepartmentDataMap = Record<string, DepartmentData>;
 type ToastState = { message: string; type: 'success' | 'info'; action?: { label: string; onClick: () => void; } } | null;
 
 interface DepartmentsDataContextType {
     getDepartmentData: (departmentId: string) => DepartmentData;
-    addTask: (departmentId: string, taskData: Pick<DepartmentTask, 'description'>) => void;
-    updateTask: (departmentId: string, taskId: string, taskData: Pick<DepartmentTask, 'description'>) => void;
-    deleteTask: (departmentId: string, taskId: string) => void;
-    reorderTasks: (departmentId: string, draggedId: string, targetId: string) => void;
-    addTarget: (departmentId: string, targetData: Omit<DepartmentTarget, 'id' | 'order' | 'createdAt' | 'updatedAt'>) => void;
-    updateTarget: (departmentId: string, targetId: string, targetData: Partial<Omit<DepartmentTarget, 'id'>>) => void;
-    deleteTarget: (departmentId: string, targetId: string) => void;
-    reorderTargets: (departmentId: string, draggedId: string, targetId: string) => void;
+    addTask: (departmentId: string, taskData: Pick<DepartmentTask, 'description'>) => Promise<void>;
+    updateTask: (departmentId: string, taskId: string, taskData: Pick<DepartmentTask, 'description'>) => Promise<void>;
+    deleteTask: (departmentId: string, taskId: string) => Promise<void>;
+    reorderTasks: (departmentId: string, draggedId: string, targetId: string) => Promise<void>;
+    addTarget: (departmentId: string, targetData: Omit<DepartmentTarget, 'id' | 'order' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+    updateTarget: (departmentId: string, targetId: string, targetData: Partial<Omit<DepartmentTarget, 'id'>>) => Promise<void>;
+    deleteTarget: (departmentId: string, targetId: string) => Promise<void>;
+    reorderTargets: (departmentId: string, draggedId: string, targetId: string) => Promise<void>;
     toast: ToastState;
     setToast: (toast: ToastState) => void;
 }
 
 const DepartmentsDataContext = createContext<DepartmentsDataContextType | undefined>(undefined);
 
+const toUtcDateString = (dateStr: string | undefined | null) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return dateStr; // Return as is if not YYYY-MM-DD or is already a full ISO string
+    }
+    return new Date(`${dateStr}T00:00:00.000Z`).toISOString();
+};
+
 export const DepartmentsDataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [data, setData] = useState<DepartmentDataMap>(() => loadBox<DepartmentDataMap>(LS_KEY, {}));
+    const { user } = useAuth();
+    const [data, setData] = useState<DepartmentDataMap>({});
     const [toast, setToast] = useState<ToastState>(null);
-    const undoTimeoutRef = React.useRef<number | null>(null);
+    const { t } = useLocalization();
 
     useEffect(() => {
-        saveBox(LS_KEY, data);
-    }, [data]);
+        if (!user) {
+            setData({});
+            return;
+        }
+
+        const collRef = collection(db, 'workspaces', 'shared', COLLECTION_NAME);
+        const unsubscribe = onSnapshot(collRef, (snapshot) => {
+            const dataMap: DepartmentDataMap = {};
+            snapshot.forEach(doc => {
+                dataMap[doc.id] = doc.data() as DepartmentData;
+            });
+            setData(dataMap);
+        }, (error) => {
+            console.error("Error listening to departmentData collection:", error);
+        });
+        return () => unsubscribe();
+    }, [user]);
     
     useEffect(() => {
         if (toast) {
-            const timer = setTimeout(() => setToast(null), 7000);
+            const timer = setTimeout(() => setToast(null), 5000);
             return () => clearTimeout(timer);
         }
     }, [toast]);
@@ -43,139 +69,98 @@ export const DepartmentsDataProvider: React.FC<{ children: ReactNode }> = ({ chi
         return data[departmentId] || { tasks: [], targets: [] };
     }, [data]);
 
-    const updateDepartmentData = (departmentId: string, updater: (prevData: DepartmentData) => DepartmentData) => {
-        setData(prev => ({
-            ...prev,
-            [departmentId]: updater(prev[departmentId] || { tasks: [], targets: [] }),
-        }));
+    const getDocRef = (departmentId: string) => {
+        if (!user) throw new Error("User not authenticated");
+        return doc(db, 'workspaces', 'shared', COLLECTION_NAME, departmentId);
+    }
+
+    const ensureDocExists = async (departmentId: string) => {
+        if (!data[departmentId]) {
+            await setDoc(getDocRef(departmentId), { tasks: [], targets: [] });
+        }
     };
 
-    const addTask = (departmentId: string, taskData: Pick<DepartmentTask, 'description'>) => {
-        updateDepartmentData(departmentId, prev => {
-            const now = new Date().toISOString();
-            const newTask: Omit<DepartmentTask, 'order'> = {
-                ...taskData,
-                id: `T${Date.now()}`,
-                createdAt: now,
-                updatedAt: now,
-            };
-            const updatedTasks = [newTask, ...prev.tasks].map((t, i) => ({ ...t, order: i }));
-            return { ...prev, tasks: updatedTasks as DepartmentTask[] };
-        });
-    };
-    
-    const updateTask = (departmentId: string, taskId: string, taskData: Pick<DepartmentTask, 'description'>) => {
-        updateDepartmentData(departmentId, prev => ({
-            ...prev,
-            tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...taskData, updatedAt: new Date().toISOString() } : t),
-        }));
-    };
-
-    const deleteTask = (departmentId: string, taskId: string) => {
-        if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-        
-        const originalState = { ...data };
-        const taskToDelete = originalState[departmentId]?.tasks.find(t => t.id === taskId);
-        if (!taskToDelete) return;
-
-        // Optimistic update
-        updateDepartmentData(departmentId, prev => ({
-            ...prev,
-            tasks: prev.tasks.filter(t => t.id !== taskId)
-        }));
-
-        setToast({
-            message: "Task deleted.",
-            type: 'info',
-            action: {
-                label: "Undo",
-                onClick: () => {
-                    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-                    setData(originalState);
-                    setToast(null);
-                }
-            }
-        });
-
-        undoTimeoutRef.current = window.setTimeout(() => {
-            undoTimeoutRef.current = null;
-        }, 7000);
-    };
-
-    const reorderTasks = (departmentId: string, draggedId: string, targetId: string) => {
-        if (draggedId === targetId) return;
-        updateDepartmentData(departmentId, prev => {
-            const tasks = [...prev.tasks];
-            const draggedIndex = tasks.findIndex(t => t.id === draggedId);
-            const targetIndex = tasks.findIndex(t => t.id === targetId);
-            const [draggedItem] = tasks.splice(draggedIndex, 1);
-            tasks.splice(targetIndex, 0, draggedItem);
-            return { ...prev, tasks: tasks.map((t, i) => ({ ...t, order: i })) };
-        });
+    const addTask = async (departmentId: string, taskData: Pick<DepartmentTask, 'description'>) => {
+        await ensureDocExists(departmentId);
+        const now = new Date().toISOString();
+        const currentTasks = getDepartmentData(departmentId).tasks;
+        const newTask: DepartmentTask = {
+            description: taskData.description,
+            id: `T${Date.now()}`,
+            order: 0,
+            createdAt: now,
+            updatedAt: now,
+        };
+        const updatedTasks = [newTask, ...currentTasks].map((t, i) => ({ ...t, order: i }));
+        await updateDoc(getDocRef(departmentId), { tasks: updatedTasks });
     };
     
-    // Target Functions
-    const addTarget = (departmentId: string, targetData: Omit<DepartmentTarget, 'id' | 'order' | 'createdAt' | 'updatedAt'>) => {
-        updateDepartmentData(departmentId, prev => {
-            const now = new Date().toISOString();
-            const newTarget: Omit<DepartmentTarget, 'order'> = {
-                ...targetData,
-                id: `TG${Date.now()}`,
-                createdAt: now,
-                updatedAt: now,
-            };
-            const updatedTargets = [newTarget, ...prev.targets].map((t, i) => ({...t, order: i}));
-            return { ...prev, targets: updatedTargets as DepartmentTarget[] };
-        });
+    const updateTask = async (departmentId: string, taskId: string, taskData: Pick<DepartmentTask, 'description'>) => {
+        const currentTasks = getDepartmentData(departmentId).tasks;
+        const updatedTasks = currentTasks.map(t => t.id === taskId ? { ...t, ...taskData, updatedAt: new Date().toISOString() } : t);
+        await updateDoc(getDocRef(departmentId), { tasks: updatedTasks });
     };
 
-    const updateTarget = (departmentId: string, targetId: string, targetData: Partial<Omit<DepartmentTarget, 'id'>>) => {
-        updateDepartmentData(departmentId, prev => ({
-            ...prev,
-            targets: prev.targets.map(t => t.id === targetId ? { ...t, ...targetData, updatedAt: new Date().toISOString() } : t),
-        }));
+    const deleteTask = async (departmentId: string, taskId: string) => {
+        const currentTasks = getDepartmentData(departmentId).tasks;
+        const updatedTasks = currentTasks.filter(t => t.id !== taskId);
+        await updateDoc(getDocRef(departmentId), { tasks: updatedTasks });
+        setToast({ message: t('departments.tasks.deleteSuccess'), type: 'success' });
     };
 
-    const deleteTarget = (departmentId: string, targetId: string) => {
-        if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-        
-        const originalState = { ...data };
-        const targetToDelete = originalState[departmentId]?.targets.find(t => t.id === targetId);
-        if (!targetToDelete) return;
-
-        updateDepartmentData(departmentId, prev => ({
-            ...prev,
-            targets: prev.targets.filter(t => t.id !== targetId)
-        }));
-        
-        setToast({
-            message: "Target deleted.",
-            type: 'info',
-            action: {
-                label: "Undo",
-                onClick: () => {
-                    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-                    setData(originalState);
-                    setToast(null);
-                }
-            }
-        });
-        
-        undoTimeoutRef.current = window.setTimeout(() => {
-            undoTimeoutRef.current = null;
-        }, 7000);
-    };
-
-    const reorderTargets = (departmentId: string, draggedId: string, targetId: string) => {
+    const reorderTasks = async (departmentId: string, draggedId: string, targetId: string) => {
         if (draggedId === targetId) return;
-        updateDepartmentData(departmentId, prev => {
-            const targets = [...prev.targets];
-            const draggedIndex = targets.findIndex(t => t.id === draggedId);
-            const targetIndex = targets.findIndex(t => t.id === targetId);
-            const [draggedItem] = targets.splice(draggedIndex, 1);
-            targets.splice(targetIndex, 0, draggedItem);
-            return { ...prev, targets: targets.map((t, i) => ({ ...t, order: i })) };
-        });
+        const tasks = [...getDepartmentData(departmentId).tasks];
+        const draggedIndex = tasks.findIndex(t => t.id === draggedId);
+        const targetIndex = tasks.findIndex(t => t.id === targetId);
+        const [draggedItem] = tasks.splice(draggedIndex, 1);
+        tasks.splice(targetIndex, 0, draggedItem);
+        const updatedTasks = tasks.map((t, i) => ({ ...t, order: i }));
+        await updateDoc(getDocRef(departmentId), { tasks: updatedTasks });
+    };
+    
+    const addTarget = async (departmentId: string, targetData: Omit<DepartmentTarget, 'id' | 'order' | 'createdAt' | 'updatedAt'>) => {
+        await ensureDocExists(departmentId);
+        const now = new Date().toISOString();
+        const currentTargets = getDepartmentData(departmentId).targets;
+        const newTarget: DepartmentTarget = {
+            ...targetData,
+            dueDate: toUtcDateString(targetData.dueDate),
+            id: `TG${Date.now()}`,
+            order: 0,
+            createdAt: now,
+            updatedAt: now,
+        };
+        const updatedTargets = [newTarget, ...currentTargets].map((t, i) => ({...t, order: i}));
+        await updateDoc(getDocRef(departmentId), { targets: updatedTargets });
+    };
+
+    const updateTarget = async (departmentId: string, targetId: string, targetData: Partial<Omit<DepartmentTarget, 'id'>>) => {
+        const currentTargets = getDepartmentData(departmentId).targets;
+        const updateData = { ...targetData };
+        if (updateData.dueDate) {
+            updateData.dueDate = toUtcDateString(updateData.dueDate);
+        }
+        const updatedTargets = currentTargets.map(t => t.id === targetId ? { ...t, ...updateData, updatedAt: new Date().toISOString() } : t);
+        await updateDoc(getDocRef(departmentId), { targets: updatedTargets });
+    };
+
+    const deleteTarget = async (departmentId: string, targetId: string) => {
+        const currentTargets = getDepartmentData(departmentId).targets;
+        const updatedTargets = currentTargets.filter(t => t.id !== targetId);
+        await updateDoc(getDocRef(departmentId), { targets: updatedTargets });
+        setToast({ message: t('departments.targets.deleteSuccess'), type: 'success' });
+    };
+
+    const reorderTargets = async (departmentId: string, draggedId: string, targetId: string) => {
+        if (draggedId === targetId) return;
+        const targets = [...getDepartmentData(departmentId).targets];
+        const draggedIndex = targets.findIndex(t => t.id === draggedId);
+        const targetIndex = targets.findIndex(t => t.id === targetId);
+        const [draggedItem] = targets.splice(draggedIndex, 1);
+        targets.splice(targetIndex, 0, draggedItem);
+        const updatedTargets = targets.map((t, i) => ({ ...t, order: i }));
+        await updateDoc(getDocRef(departmentId), { targets: updatedTargets });
     };
 
     const value = {

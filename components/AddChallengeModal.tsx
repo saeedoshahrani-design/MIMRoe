@@ -27,8 +27,7 @@ const getInitialState = () => {
     const defaultPriority = computePriorityDetails('متوسط', 'متوسط');
     return {
         code: '',
-        title_ar: '',
-        title_en: '',
+        title: '',
         description: '',
         status: 'جديد' as Challenge['status'],
         priority: defaultPriority.legacyPriority,
@@ -134,8 +133,7 @@ const AddChallengeModal: React.FC<AddChallengeModalProps> = ({ isOpen, onClose, 
             if (isEditMode && challengeToEdit) {
                  setFormState({
                     code: challengeToEdit.code,
-                    title_ar: challengeToEdit.title_ar,
-                    title_en: challengeToEdit.title_en,
+                    title: challengeToEdit.title,
                     description: challengeToEdit.description,
                     status: challengeToEdit.status,
                     priority: challengeToEdit.priority,
@@ -162,7 +160,7 @@ const AddChallengeModal: React.FC<AddChallengeModalProps> = ({ isOpen, onClose, 
 
     const validate = (): boolean => {
         const newErrors: Errors = {};
-        const requiredFields: (keyof Omit<FormState, 'code' | 'created_at' | 'updated_at' | 'priority' | 'priority_category' | 'priority_score'>)[] = ['title_ar', 'title_en', 'description', 'status', 'category', 'impact', 'effort', 'department', 'start_date', 'target_date'];
+        const requiredFields: (keyof Omit<FormState, 'code' | 'created_at' | 'updated_at' | 'priority' | 'priority_category' | 'priority_score'>)[] = ['title', 'description', 'status', 'category', 'impact', 'effort', 'department', 'start_date', 'target_date'];
         
         requiredFields.forEach(field => {
             if (!formState[field as keyof typeof formState]) {
@@ -209,7 +207,7 @@ const AddChallengeModal: React.FC<AddChallengeModalProps> = ({ isOpen, onClose, 
         const { name, value } = e.target;
         const newErrors: Errors = { ...errors };
 
-        if (!value && ['title_ar', 'title_en', 'description', 'department', 'start_date', 'target_date', 'effort', 'impact'].includes(name)) {
+        if (!value && ['title', 'description', 'department', 'start_date', 'target_date', 'effort', 'impact'].includes(name)) {
             newErrors[name as keyof Errors] = t('challenges.modal.validation.required');
         } else {
             delete newErrors[name as keyof Errors];
@@ -264,10 +262,8 @@ const AddChallengeModal: React.FC<AddChallengeModalProps> = ({ isOpen, onClose, 
         return typeof error === 'string' ? error : undefined;
     };
     
-    const statusOptions = Object.values(locales[language].challenges.statusOptions);
-    const categoryOptions = Object.values(locales[language].challenges.categoryOptions);
-    const impactOptions = Object.entries(locales[language].challenges.impactOptions).map(([key, value]) => ({ key: Object.values(locales.ar.challenges.impactOptions)[Object.keys(locales.en.challenges.impactOptions).indexOf(key)], value }));
-    const effortOptions = Object.entries(locales[language].challenges.effortOptions).map(([key, value]) => ({ key: Object.values(locales.ar.challenges.effortOptions)[Object.keys(locales.en.challenges.effortOptions).indexOf(key)], value }));
+    const impactOptions = Object.entries(locales[language].challenges.impactOptions).map(([key, value]) => ({ key: Object.values(locales.ar.challenges.impactOptions)[Object.keys(locales.en.challenges.impactOptions).indexOf(key)], value: value as string }));
+    const effortOptions = Object.entries(locales[language].challenges.effortOptions).map(([key, value]) => ({ key: Object.values(locales.ar.challenges.effortOptions)[Object.keys(locales.en.challenges.effortOptions).indexOf(key)], value: value as string }));
     const modalTitle = isEditMode ? t('challenges.modal.editTitle') : t('challenges.modal.addTitle');
 
     const selectedDepartmentId = departments.find(d => d.name.ar === formState.department)?.id || null;
@@ -284,15 +280,14 @@ const AddChallengeModal: React.FC<AddChallengeModalProps> = ({ isOpen, onClose, 
 
                 <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                         <FormField label={t('challenges.modal.challengeCode')} name="code">
+                        <FormField label={t('challenges.modal.challengeCode')} name="code">
                             <input type="text" id="code" name="code" value={formState.code} readOnly disabled className="w-full bg-natural-100 dark:bg-natural-900 border-natural-300 dark:border-natural-600 rounded-md cursor-not-allowed"/>
                         </FormField>
-                        <FormField label={t('challenges.modal.title_ar')} name="title_ar" required error={getError('title_ar')}>
-                             <input type="text" id="title_ar" name="title_ar" value={formState.title_ar} onChange={handleChange} onBlur={handleBlur} dir="rtl" className="w-full bg-natural-50 dark:bg-natural-700 border-natural-300 dark:border-natural-600 rounded-md break-words"/>
-                        </FormField>
-                         <FormField label={t('challenges.modal.title_en')} name="title_en" required error={getError('title_en')}>
-                             <input type="text" id="title_en" name="title_en" value={formState.title_en} onChange={handleChange} onBlur={handleBlur} className="w-full bg-natural-50 dark:bg-natural-700 border-natural-300 dark:border-natural-600 rounded-md break-words"/>
-                        </FormField>
+                        <div className="md:col-span-2">
+                            <FormField label={t('challenges.modal.title')} name="title" required error={getError('title')}>
+                                <input type="text" id="title" name="title" value={formState.title} onChange={handleChange} onBlur={handleBlur} className="w-full bg-natural-50 dark:bg-natural-700 border-natural-300 dark:border-natural-600 rounded-md break-words"/>
+                            </FormField>
+                        </div>
                     </div>
 
                     <FormField label={t('challenges.modal.description')} name="description" required error={getError('description')}>
@@ -308,12 +303,22 @@ const AddChallengeModal: React.FC<AddChallengeModalProps> = ({ isOpen, onClose, 
                         </FormField>
                         <FormField label={t('challenges.status')} name="status" required error={getError('status')}>
                             <select id="status" name="status" value={formState.status} onChange={handleChange} className="w-full bg-natural-50 dark:bg-natural-700 border-natural-300 dark:border-natural-600 rounded-md">
-                                {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                {/* FIX: Refactor option rendering to resolve type errors. */}
+                                {Object.keys(locales.ar.challenges.statusOptions).map((key) => {
+                                    const arValue = (locales.ar.challenges.statusOptions as Record<string,string>)[key];
+                                    const displayValue = (locales[language].challenges.statusOptions as Record<string,string>)[key];
+                                    return <option key={key} value={arValue}>{displayValue}</option>;
+                                })}
                             </select>
                         </FormField>
                         <FormField label={t('challenges.category')} name="category" required error={getError('category')}>
                            <select id="category" name="category" value={formState.category} onChange={handleChange} className="w-full bg-natural-50 dark:bg-natural-700 border-natural-300 dark:border-natural-600 rounded-md">
-                               {categoryOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                               {/* FIX: Refactor option rendering to resolve type errors. */}
+                               {Object.keys(locales.ar.challenges.categoryOptions).map((key) => {
+                                   const arValue = (locales.ar.challenges.categoryOptions as Record<string, string>)[key];
+                                   const displayValue = (locales[language].challenges.categoryOptions as Record<string, string>)[key];
+                                   return <option key={key} value={arValue}>{displayValue}</option>;
+                               })}
                             </select>
                         </FormField>
                     </div>
@@ -342,7 +347,7 @@ const AddChallengeModal: React.FC<AddChallengeModalProps> = ({ isOpen, onClose, 
                                     className="flex items-center justify-between w-full px-3 py-2 bg-natural-100 dark:bg-natural-900 border border-natural-300 dark:border-natural-600 rounded-md cursor-not-allowed text-sm font-semibold text-natural-700 dark:text-natural-300"
                                 >
                                     <span>
-                                        {t(`challenges.priorityCategories.${formState.priority_category as keyof typeof locales.en.challenges.priorityCategories}`)}
+                                        {t(`challenges.priorityCategories.${String(formState.priority_category)}`)}
                                     </span>
                                     <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-natural-200 dark:bg-natural-700 text-natural-600 dark:text-natural-400">
                                         {t('challenges.modal.auto')}

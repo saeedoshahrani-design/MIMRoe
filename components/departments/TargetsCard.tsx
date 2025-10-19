@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useLocalization } from '../../hooks/useLocalization';
-import { DepartmentTarget, TargetStatus } from '../../types';
+import { DepartmentTarget, TargetStatus, Procedure } from '../../types';
 import Card from '../Card';
 import EmptyState from '../EmptyState';
-import { BoltIcon, SearchIcon, PlusIcon, PencilIcon, TrashIcon } from '../icons/IconComponents';
+import { BoltIcon, SearchIcon, PlusIcon, PencilIcon, TrashIcon, LinkIcon } from '../icons/IconComponents';
 import { calculateTargetProgress, getTargetStatus } from '../../utils/departmentUtils';
 import TargetFormModal from './TargetFormModal';
 import ConfirmationModal from '../ConfirmationModal';
@@ -16,6 +16,8 @@ interface TargetsCardProps {
     onDeleteTarget: (targetId: string) => void;
     onReorderTargets: (draggedId: string, targetId: string) => void;
     setToast: (toast: any) => void;
+    procedures: Procedure[];
+    onViewProcedure: (procedure: Procedure) => void;
 }
 
 const getStatusStyles = (status: TargetStatus) => {
@@ -26,8 +28,8 @@ const getStatusStyles = (status: TargetStatus) => {
     }
 };
 
-const TargetsCard: React.FC<TargetsCardProps> = ({ departmentId, targets, onAddTarget, onUpdateTarget, onDeleteTarget, onReorderTargets, setToast }) => {
-    const { t } = useLocalization();
+const TargetsCard: React.FC<TargetsCardProps> = ({ departmentId, targets, onAddTarget, onUpdateTarget, onDeleteTarget, onReorderTargets, setToast, procedures, onViewProcedure }) => {
+    const { t, language } = useLocalization();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [targetToDelete, setTargetToDelete] = useState<DepartmentTarget | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -40,7 +42,7 @@ const TargetsCard: React.FC<TargetsCardProps> = ({ departmentId, targets, onAddT
     
     const filteredTargets = useMemo(() => {
         return sortedTargets.filter(target =>
-            target.name.toLowerCase().includes(searchTerm.toLowerCase())
+            (target.name || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [sortedTargets, searchTerm]);
     
@@ -140,6 +142,7 @@ const TargetsCard: React.FC<TargetsCardProps> = ({ departmentId, targets, onAddT
                                 const progress = calculateTargetProgress(target.baseline, target.current, target.target);
                                 const status = getTargetStatus(progress);
                                 const styles = getStatusStyles(status);
+                                const linkedProcedures = procedures.filter(p => p.linkedTargetIds?.includes(target.id));
 
                                 return (
                                     <div key={target.id} className="p-3 rounded-lg bg-natural-50 dark:bg-natural-800/50 border border-natural-200 dark:border-natural-700">
@@ -164,6 +167,30 @@ const TargetsCard: React.FC<TargetsCardProps> = ({ departmentId, targets, onAddT
                                             <button onClick={() => setTargetToDelete(target)} className="p-1 text-natural-500 hover:text-red-600 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50">
                                                 <TrashIcon className="w-4 h-4" />
                                             </button>
+                                        </div>
+                                        <div className="mt-2 pt-2 border-t border-natural-200/50 dark:border-natural-700/50">
+                                            {linkedProcedures.length > 0 ? (
+                                                <div className="flex flex-wrap gap-2 items-center">
+                                                    <span className="flex-shrink-0" title={t('departments.tasks.linkedProcedures')}>
+                                                        <LinkIcon className="w-4 h-4 text-natural-400" />
+                                                    </span>
+                                                    {linkedProcedures.map(proc => (
+                                                        <button
+                                                            key={proc.id}
+                                                            onClick={() => onViewProcedure(proc)}
+                                                            className="px-2 py-0.5 text-xs font-mono bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                                                            title={proc.title[language]}
+                                                        >
+                                                            {proc.code}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 text-xs text-natural-400 italic">
+                                                    <LinkIcon className="w-4 h-4"/>
+                                                    <span>{t('departments.tasks.noLinkedProcedures')}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 );

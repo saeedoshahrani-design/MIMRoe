@@ -1,12 +1,14 @@
 
 
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocalization } from '../hooks/useLocalization';
 import { Challenge, DashboardFilters, PerformanceStatus } from '../types';
 import { departments } from '../data/mockData';
 import { getPerformanceStatus } from '../utils/calculatePlannedProgress';
 import { getDefaultFilters } from '../utils/dashboardUtils';
-import { SearchIcon, ChevronDownIcon, CalendarIcon } from './icons/IconComponents';
+// FIX: Changed CalendarIcon to CalendarDaysIcon to match the exported component name.
+import { SearchIcon, ChevronDownIcon, CalendarDaysIcon as CalendarIcon } from './icons/IconComponents';
 
 interface FilterBarProps {
     initialFilters: DashboardFilters;

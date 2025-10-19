@@ -1,37 +1,32 @@
-import React, { useState, useRef } from 'react';
-import { useLocalization } from '../hooks/useLocalization';
-import Card from '../components/Card';
-import PageTitle from '../components/PageTitle';
-import { useLeadTasks } from '../context/LeadTasksContext';
-import { LeadTaskCategory } from '../types';
-import TaskCategoryCard from '../components/leadTasks/TaskCategoryCard';
-import { PencilIcon } from '../components/icons/IconComponents';
+import React, { useState, useEffect } from 'react';
+import { useLocalization } from '../hooks/useLocalization.ts';
+import Card from '../components/Card.tsx';
+import PageTitle from '../components/PageTitle.tsx';
+import { useLeadTasks } from '../context/LeadTasksContext.tsx';
+import { LeadTaskCategory } from '../types.ts';
+import TaskCategoryCard from '../components/leadTasks/TaskCategoryCard.tsx';
+import { PencilIcon, UserCircleIcon } from '../components/icons/IconComponents.tsx';
 
 const LeadTasks: React.FC = () => {
-    const { t } = useLocalization();
-    const { leadTasksData, updateLeaderName, updateLeaderPhoto } = useLeadTasks();
-    const { leaderName, leaderPhoto, tasks } = leadTasksData;
+    const { t, language } = useLocalization();
+    const { leadTasksData, updateLeaderName } = useLeadTasks();
+    const { leaderName, tasks } = leadTasksData;
 
     const [isEditingName, setIsEditingName] = useState(false);
-    const [editedName, setEditedName] = useState(leaderName);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [editedName, setEditedName] = useState(leaderName[language]);
+    
+    useEffect(() => {
+        // Sync local state with context when not in editing mode
+        if (!isEditingName) {
+            setEditedName(leaderName[language] || '');
+        }
+    }, [leaderName, language, isEditingName]);
 
     const handleNameSave = () => {
-        if (editedName.trim()) {
-            updateLeaderName(editedName.trim());
+        if (editedName.trim() && editedName.trim() !== leaderName[language]) {
+            updateLeaderName(editedName.trim(), language);
         }
         setIsEditingName(false);
-    };
-
-    const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                updateLeaderPhoto(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
     };
 
     const taskCategories: { id: LeadTaskCategory; title: string }[] = [
@@ -46,22 +41,8 @@ const LeadTasks: React.FC = () => {
         <div className="space-y-6">
             <PageTitle />
             <Card className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6 rtl:md:space-x-reverse">
-                <div className="relative group">
-                    <img src={leaderPhoto} alt="Leader" className="w-28 h-28 rounded-full object-cover border-4 border-mim-bright-blue" />
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        aria-label={t('leadTasks.changePhoto')}
-                    >
-                        <PencilIcon className="w-6 h-6" />
-                    </button>
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handlePhotoChange}
-                        className="hidden"
-                        accept="image/*"
-                    />
+                <div className="relative">
+                    <UserCircleIcon className="w-28 h-28 text-natural-300 dark:text-natural-600 border-4 border-mim-bright-blue rounded-full" />
                 </div>
                 <div className="text-center md:text-left rtl:md:text-right">
                     {isEditingName ? (
@@ -78,8 +59,8 @@ const LeadTasks: React.FC = () => {
                         </div>
                     ) : (
                         <div className="flex items-center gap-2 group">
-                            <h2 className="text-2xl font-bold">{leaderName}</h2>
-                            <button onClick={() => { setEditedName(leaderName); setIsEditingName(true); }} className="text-natural-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <h2 className="text-2xl font-bold">{leaderName[language]}</h2>
+                            <button onClick={() => { setEditedName(leaderName[language]); setIsEditingName(true); }} className="text-natural-400 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <PencilIcon className="w-5 h-5" />
                             </button>
                         </div>
